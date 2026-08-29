@@ -54,9 +54,18 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
 
     # --- Голос ---
-    stt_model: str = "small"
-    stt_device: str = "cpu"
-    stt_compute: str = "int8"
+    # Распознавание: GigaAM v3 (E2E RNN-T) в ONNX — лучший русский из доступных.
+    asr_model: str = "gigaam-v3-e2e-rnnt"
+    # int8 быстрее и меньше весит; пустая строка — исходная точность.
+    asr_quantization: str = "int8"
+    # Маленькая модель, которая всё время слушает поток и ловит обращение.
+    hotword_model: str = "vosk-model-small-ru-0.22"
+    # Сколько звука до момента срабатывания дописываем к реплике.
+    stream_preroll_ms: int = 1200
+    # Предохранитель: реплика не может длиться дольше.
+    stream_max_utterance_s: float = 15.0
+    # Пауза, после которой реплика считается законченной.
+    stream_silence_ms: int = 900
     tts_backend: str = "edge"
     tts_voice: str = "ru-RU-DmitryNeural"
     tts_rate: str = "+8%"
@@ -83,6 +92,10 @@ class Settings(BaseSettings):
         return DATA_DIR / "index"
 
     @property
+    def models_dir(self) -> Path:
+        return DATA_DIR / "models"
+
+    @property
     def documents_path(self) -> Path:
         return DATA_DIR / "documents.jsonl"
 
@@ -97,4 +110,5 @@ def get_settings() -> Settings:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.raw_dir.mkdir(parents=True, exist_ok=True)
     settings.index_dir.mkdir(parents=True, exist_ok=True)
+    settings.models_dir.mkdir(parents=True, exist_ok=True)
     return settings

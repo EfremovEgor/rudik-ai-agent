@@ -1,15 +1,12 @@
 """Замер качества распознавания русской речи.
 
 Синтезирует набор типичных вопросов двумя голосами, прогоняет их через
-faster-whisper и считает WER. Аудио кэшируется, так что повторные прогоны
-быстрые.
+распознавание и считает WER. Аудио кэшируется, повторные прогоны быстрые.
 
-    uv run python scripts/bench_stt.py small
-    uv run python scripts/bench_stt.py medium
+    uv run python scripts/bench_stt.py
 """
 
 import asyncio
-import io
 import json
 import sys
 import time
@@ -17,9 +14,8 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 import edge_tts
-from faster_whisper import WhisperModel
 
-from backend.voice.stt import domain_prompt
+from backend.voice import asr
 
 PHRASES = [
     "Рудик, скажи где кабинет Салтыковой?",
@@ -57,7 +53,7 @@ def wer(reference: str, hypothesis: str) -> float:
     return round(max(0, len(ref) - correct) / max(1, len(ref)), 3)
 
 
-async def main(model_names: list[str]) -> None:
+async def main() -> None:
     CACHE.mkdir(exist_ok=True)
     clips = []
     for index, phrase in enumerate(PHRASES):
@@ -66,34 +62,33 @@ async def main(model_names: list[str]) -> None:
             await synth(phrase, voice, path)
             clips.append((phrase, path))
 
-    report = {}
-    for model_name in model_names:
-        model = WhisperModel(model_name, device="cpu", compute_type="int8")
-        started = time.monotonic()
-        rows, total = [], 0.0
-        for phrase, path in clips:
-            segments, _ = model.transcribe(
-                io.BytesIO(path.read_bytes()),
-                language="ru",
-                beam_size=5,
-                vad_filter=True,
-                initial_prompt=domain_prompt(),
-            )
-            text = " ".join(s.text.strip() for s in segments).strip()
-            score = wer(phrase, text)
-            total += score
-            rows.append({"ref": phrase, "hyp": text, "wer": score})
-        report[model_name] = {
-            "wer": round(total / len(clips), 3),
-            "seconds": round(time.monotonic() - started, 1),
-            "rows": rows,
-        }
-        del model
+    asr.get_model()
+    started = time.monotonic()
+    rows, total = [], 0.0
+    for phrase, path in clips:
+        samples = asr.decode_audio(path.read_bytes())
+        text = asr.transcribe_pcm(samples)
+        score = wer(phrase, text)
+        total += score
+        rows.append({"ref": phrase, "hyp": text, "wer": score})
 
-    Path(__file__).with_name(f"bench_{model_names[0]}.json").write_text(
+    report = {
+        "model": asr.status()["model"],
+        "wer": round(total / len(clips), 3),
+        "seconds": round(time.monotonic() - started, 1),
+        "clips": len(clips),
+        "rows": rows,
+    }
+    Path(__file__).with_name("bench_result.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
     )
-    print("done")
+    perfect = sum(1 for row in rows if row["wer"] == 0)
+    print(f"{report['model']}: WER {report['wer']}, идеально {perfect}/{len(rows)}")
+    for row in rows:
+        if row["wer"]:
+            print(f"  {row['wer']:.2f} {row['ref']}")
+            print(f"       -> {row['hyp']}")
 
 
-asyncio.run(main(sys.argv[1:] or ["small"]))
+asyncio.run(main())
+sys.exit(0)

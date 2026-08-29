@@ -38,6 +38,7 @@ function withoutSources(text: string): string {
 
 export function StatePanel({ onStart }: { onStart: () => void }) {
   const screen = useStore(rudikStore, (state) => state.screen)
+  const partial = useStore(rudikStore, (state) => state.partial)
   const question = useStore(rudikStore, (state) => state.question)
   const answer = useStore(rudikStore, (state) => state.answer)
   const sources = useStore(rudikStore, (state) => state.sources)
@@ -82,8 +83,13 @@ export function StatePanel({ onStart }: { onStart: () => void }) {
         <>
           <p className="rd-kicker m-0 text-[var(--rd-blue)]">Слушаю вас</p>
           <div className="mt-[2.8vh] flex min-h-[26vh] items-center rounded-[28px] bg-white px-[2.9vw] py-[5vh] shadow-[0_14px_44px_rgba(11,43,64,.1)]">
-            <p className="rd-answer m-0 text-[var(--rd-ink)] text-pretty">
-              Скажите «Рудик» и задайте вопрос
+            {/* Пока человек говорит, показываем расшифровку на лету. */}
+            <p
+              className={`rd-answer m-0 text-pretty ${
+                partial ? 'text-[var(--rd-ink)]' : 'text-[var(--rd-muted)]'
+              }`}
+            >
+              {partial || 'Скажите «Рудик» и задайте вопрос'}
               <span className="rud-blink ml-[0.4vw] inline-block h-[clamp(20px,2.9vw,54px)] w-[5px] translate-y-[0.12em] bg-[var(--rd-blue)] align-middle" />
             </p>
           </div>

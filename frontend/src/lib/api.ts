@@ -45,6 +45,15 @@ function resolveApiBase(): string {
 
 export const API_BASE = resolveApiBase()
 
+/** Адрес постоянного голосового канала: тот же origin, но по ws/wss. */
+export function streamUrl(sessionId: string): string {
+  const base = API_BASE || window.location.origin
+  const url = new URL('/api/voice/stream', base)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  url.searchParams.set('session_id', sessionId)
+  return url.toString()
+}
+
 export interface WakeInfo {
   detected: boolean
   command: string
@@ -70,6 +79,7 @@ export interface Health {
     embedder?: string | null
   }
   stt: { available: boolean; model: string; loaded: boolean; error: string | null }
+  hotword: { available: boolean; model: string; loaded: boolean; downloaded: boolean }
   tts: { available: boolean; backend: string; voice: string }
 }
 

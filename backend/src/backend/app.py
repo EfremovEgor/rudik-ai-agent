@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api import chat, knowledge, voice
+from backend.api import chat, knowledge, stream, voice
 from backend.config import get_settings
 
 log = logging.getLogger(__name__)
@@ -30,7 +31,26 @@ async def lifespan(app: FastAPI):
         log.info("Модель %s на %s", settings.model, settings.llm_base_url)
     else:
         log.warning("Сервер модели %s недоступен: %s", settings.llm_base_url, llm["error"])
-    yield
+
+    # Модели голоса греем в фоне: иначе первый вопрос ждёт их загрузку.
+    warmup = asyncio.create_task(_warm_voice_models())
+    try:
+        yield
+    finally:
+        warmup.cancel()
+
+
+async def _warm_voice_models() -> None:
+    from backend.voice import asr, hotword
+
+    try:
+        await asyncio.to_thread(hotword.get_model)
+        await asyncio.to_thread(asr.get_model)
+        log.info("Модели голоса прогреты")
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        log.exception("Не удалось прогреть модели голоса")
 
 
 def create_app() -> FastAPI:
@@ -52,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(knowledge.router)
     app.include_router(chat.router)
     app.include_router(voice.router)
+    app.include_router(stream.router)
     return app
 
 

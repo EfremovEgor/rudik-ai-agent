@@ -10,7 +10,7 @@ from backend.agent.graph import check_llm
 from backend.api.schemas import HealthResponse, SearchResponse
 from backend.config import get_settings
 from backend.rag.store import get_kb
-from backend.voice import stt, tts
+from backend.voice import asr, hotword, tts
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["knowledge"])
@@ -24,7 +24,8 @@ async def health() -> HealthResponse:
         wake_word=settings.wake_word,
         llm=await check_llm(settings),
         knowledge_base=get_kb().stats(),
-        stt=stt.status(),
+        stt=asr.status(),
+        hotword=hotword.status(),
         tts=tts.status(),
     )
 

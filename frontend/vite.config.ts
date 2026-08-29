@@ -34,6 +34,8 @@ const config = defineConfig({
       '/api': {
         target: process.env.RUDIK_API ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // Голос идёт постоянным потоком по вебсокету.
+        ws: true,
       },
     },
   },

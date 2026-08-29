@@ -15,7 +15,7 @@ from fastapi.responses import Response
 from backend.agent.graph import answer, strip_sources
 from backend.api.schemas import TranscriptResponse, TtsRequest, VoiceAnswer, WakeInfo
 from backend.config import get_settings
-from backend.voice import stt, tts
+from backend.voice import asr, tts
 from backend.voice.wakeword import detect
 
 log = logging.getLogger(__name__)
@@ -33,9 +33,11 @@ async def _read_audio(audio: UploadFile) -> bytes:
     return data
 
 
-def _transcribe(data: bytes) -> stt.Transcript:
+def _transcribe(data: bytes) -> str:
+    """Разбирает аудиофайл из браузера и распознаёт его GigaAM."""
     try:
-        return stt.transcribe(data)
+        samples = asr.decode_audio(data)
+        return asr.transcribe_pcm(samples)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
@@ -46,11 +48,11 @@ def _transcribe(data: bytes) -> stt.Transcript:
 @router.post("/stt", response_model=TranscriptResponse)
 async def speech_to_text(audio: UploadFile = File(...)) -> TranscriptResponse:
     """Только расшифровка — без обращения к модели."""
-    result = _transcribe(await _read_audio(audio))
-    wake = detect(result.text)
+    text = _transcribe(await _read_audio(audio))
+    wake = detect(text)
     return TranscriptResponse(
-        text=result.text,
-        duration=result.duration,
+        text=text,
+        duration=0.0,
         wake=WakeInfo(
             detected=wake.detected, command=wake.command, matched=wake.matched, score=wake.score
         ),
@@ -79,17 +81,17 @@ async def voice_ask(
     """Полный голосовой цикл: речь -> текст -> ответ агента -> речь."""
     settings = get_settings()
     data = await _read_audio(audio)
-    transcript = _transcribe(data)
-    wake = detect(transcript.text)
+    text = _transcribe(data)
+    wake = detect(text)
     info = WakeInfo(
         detected=wake.detected, command=wake.command, matched=wake.matched, score=wake.score
     )
 
     # Тишина или фраза не для нас — просто молчим.
     if require_wake_word and not wake.detected:
-        return VoiceAnswer(question=transcript.text, wake=info, session_id=session_id)
+        return VoiceAnswer(question=text, wake=info, session_id=session_id)
 
-    question = (wake.command if wake.detected else transcript.text).strip()
+    question = (wake.command if wake.detected else text).strip()
     if not question:
         question = "Расскажи, что ты умеешь."
 

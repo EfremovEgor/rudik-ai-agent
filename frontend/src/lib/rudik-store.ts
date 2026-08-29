@@ -25,6 +25,8 @@ export interface RudikState {
   micReady: boolean
   /** Громкость с микрофона (0..1) — по ней живёт эквалайзер. */
   level: number
+  /** Живая расшифровка от быстрой модели, пока человек говорит. */
+  partial: string
   /** Что распознали в последней реплике. */
   question: string
   /** Ответ Рудика целиком. */
@@ -57,6 +59,7 @@ export const rudikStore = new Store<RudikState>({
   screen: 'idle',
   micReady: false,
   level: 0,
+  partial: '',
   question: '',
   answer: '',
   sources: [],
@@ -90,15 +93,24 @@ export function toggleVoiceReplies(value?: boolean): void {
 
 /** Начали слушать зал: старый диалог со сцены убираем. */
 export function startListening(): void {
-  patch({ screen: 'listening', question: '', answer: '', sources: [], errorText: '' })
+  patch({ screen: 'listening', partial: '', question: '', answer: '', sources: [], errorText: '' })
+}
+
+/** Услышали обращение — дальше показываем расшифровку на лету. */
+export function setPartial(partial: string): void {
+  patch({ screen: 'listening', partial })
 }
 
 export function startThinking(question = ''): void {
   patch({ screen: 'thinking', question, answer: '', sources: [], errorText: '' })
 }
 
+export function setQuestion(question: string): void {
+  patch({ question })
+}
+
 export function showAnswer(question: string, answer: string, sources: Array<string>): void {
-  patch({ screen: 'answer', question, answer, sources, errorText: '' })
+  patch({ screen: 'answer', question, answer, sources, errorText: '', partial: '' })
 }
 
 export function showError(errorText: string, question = ''): void {
@@ -114,6 +126,7 @@ export function resetScreen(): void {
   rudikStore.setState((state) => ({
     ...state,
     screen: state.micReady ? 'listening' : 'idle',
+    partial: '',
     question: '',
     answer: '',
     sources: [],

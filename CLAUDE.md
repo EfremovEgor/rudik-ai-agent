@@ -11,6 +11,8 @@ uv sync --extra rag --extra voice   # rag = fastembed, voice = whisper + edge-tt
 uv run rudik-serve                  # API на 127.0.0.1:8000
 uv run rudik-scrape --cache --index # пересобрать данные из кэша HTML
 uv run rudik-index                  # только индекс
+uv run python scripts/bench_stt.py  # WER распознавания на типичных вопросах
+uv run python scripts/check_stream.py  # прогон записи через голосовой канал
 
 # фронтенд (из frontend/)
 npm run dev      # 3000, /api проксируется на 8000
@@ -25,10 +27,11 @@ npm run build
 | `backend/src/backend/scraper/` | обход сайта: `crawl` (BFS), `parsers` (типы страниц), `pipeline` (сборка документов) |
 | `backend/src/backend/rag/` | `documents` (нарезка), `index` (BM25 + векторы + RRF), `store` (синглтон), `build` (CLI) |
 | `backend/src/backend/agent/` | `tools` (инструменты), `graph` (LangGraph), `prompts` |
-| `backend/src/backend/voice/` | `stt` (faster-whisper), `tts` (edge-tts), `wakeword` (нечёткий поиск «Рудик») |
+| `backend/src/backend/voice/` | `asr` (GigaAM в ONNX), `hotword` (Vosk на потоке), `session` (машина состояний канала), `tts`, `wakeword` (нечёткое сравнение) |
 | `backend/src/backend/api/` | роутеры FastAPI |
 | `frontend/src/lib/` | `api.ts` (клиент), `rudik-store.ts` (состояния экрана) |
-| `frontend/src/hooks/useVoiceSession.ts` | микрофон, VAD, отправка фрагментов речи |
+| `frontend/src/hooks/useVoiceStream.ts` | микрофон, AudioWorklet, вебсокет с сервером |
+| `frontend/public/rudik-capture.js` | AudioWorklet: кадры моно PCM16 16 кГц |
 | `frontend/src/components/rudik/` | киоск: сцена с позами, шапка и подвал, панель состояния |
 
 ## Правила, о которых легко забыть
@@ -45,6 +48,11 @@ npm run build
 - **Тексты и комментарии в коде — на русском**, как и весь интерфейс.
 - **Голосовые зависимости опциональны**: код должен деградировать до текста
   и браузерного синтеза, а не падать.
+- **Две модели распознавания, и это намеренно**: Vosk слушает поток постоянно
+  и ловит обращение, GigaAM включается только на выделенную реплику. Гонять
+  GigaAM на весь поток нельзя — вырастет задержка.
+- **Распознавание блокирующее** — вызывать только через `asyncio.to_thread`,
+  иначе встанет весь событийный цикл.
 - **Экран — киоск по макету**, а не чат: одно состояние на весь холст.
   Состояния перечислены в `Screen` (`lib/rudik-store.ts`), проверять их удобно
   через `/?screen=<состояние>`.

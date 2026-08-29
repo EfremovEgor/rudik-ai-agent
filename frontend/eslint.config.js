@@ -15,6 +15,7 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js'],
+    // rudik-capture.js — AudioWorklet: свой глобальный контекст, не часть сборки.
+    ignores: ['eslint.config.js', 'prettier.config.js', 'public/**'],
   },
 ]

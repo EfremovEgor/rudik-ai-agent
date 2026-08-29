@@ -60,4 +60,5 @@ class HealthResponse(BaseModel):
     llm: dict[str, Any]
     knowledge_base: dict[str, Any]
     stt: dict[str, Any]
+    hotword: dict[str, Any]
     tts: dict[str, Any]

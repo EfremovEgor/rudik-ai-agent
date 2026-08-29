@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { AvatarStage } from '#/components/rudik/AvatarStage'
 import { KioskFooter, KioskHeader } from '#/components/rudik/KioskChrome'
 import { StatePanel } from '#/components/rudik/StatePanel'
-import { useVoiceSession } from '#/hooks/useVoiceSession'
+import { useVoiceStream } from '#/hooks/useVoiceStream'
 import { rudikStore } from '#/lib/rudik-store'
 import type { Screen } from '#/lib/rudik-store'
 
@@ -46,28 +46,8 @@ function useDemoScreen(screen: Screen | undefined): void {
 }
 
 function RudikKiosk() {
-  const { startSession, pushToTalkStart, pushToTalkStop } = useVoiceSession()
+  const { startSession } = useVoiceStream()
   useDemoScreen(Route.useSearch().screen)
-
-  // Пробел — «нажми и говори» без обращения по имени: удобно для показа.
-  useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || event.repeat) return
-      event.preventDefault()
-      void pushToTalkStart()
-    }
-    const up = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return
-      event.preventDefault()
-      pushToTalkStop()
-    }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
-  }, [pushToTalkStart, pushToTalkStop])
 
   return (
     <main className="relative flex h-dvh flex-col overflow-hidden bg-[var(--rd-bg)]">
