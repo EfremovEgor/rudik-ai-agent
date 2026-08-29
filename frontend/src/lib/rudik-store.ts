@@ -1,0 +1,122 @@
+/** Состояние экрана Рудика на TanStack Store.
+
+Экран — киоск: одно состояние на весь холст, как в макете.
+*/
+
+import { Store } from '@tanstack/store'
+
+export type Screen =
+  /** Ждём обращения, показываем приветствие. */
+  | 'idle'
+  /** Микрофон открыт, слушаем зал. */
+  | 'listening'
+  /** Распознаём речь и ищем ответ. */
+  | 'thinking'
+  /** Показываем и озвучиваем ответ. */
+  | 'answer'
+  /** Не расслышали вопрос или запрос не прошёл. */
+  | 'error'
+  /** Микрофона нет или доступ не выдан. */
+  | 'nomic'
+
+export interface RudikState {
+  screen: Screen
+  /** Микрофон открыт и слушает. */
+  micReady: boolean
+  /** Громкость с микрофона (0..1) — по ней живёт эквалайзер. */
+  level: number
+  /** Что распознали в последней реплике. */
+  question: string
+  /** Ответ Рудика целиком. */
+  answer: string
+  /** Ссылки на страницы сайта, на которые опирался ответ. */
+  sources: Array<string>
+  /** Текст ошибки для состояния error. */
+  errorText: string
+  /** Озвучивать ответы. */
+  voiceReplies: boolean
+  sessionId: string
+}
+
+const SESSION_KEY = 'rudik.session'
+
+function initialSession(): string {
+  if (typeof window === 'undefined') return 'server'
+  try {
+    const stored = window.localStorage.getItem(SESSION_KEY)
+    if (stored) return stored
+    const fresh = `kiosk-${Math.random().toString(36).slice(2, 10)}`
+    window.localStorage.setItem(SESSION_KEY, fresh)
+    return fresh
+  } catch {
+    return `kiosk-${Math.random().toString(36).slice(2, 10)}`
+  }
+}
+
+export const rudikStore = new Store<RudikState>({
+  screen: 'idle',
+  micReady: false,
+  level: 0,
+  question: '',
+  answer: '',
+  sources: [],
+  errorText: '',
+  voiceReplies: true,
+  sessionId: initialSession(),
+})
+
+function patch(values: Partial<RudikState>): void {
+  rudikStore.setState((state) => ({ ...state, ...values }))
+}
+
+export function setScreen(screen: Screen): void {
+  patch({ screen })
+}
+
+export function setLevel(level: number): void {
+  patch({ level })
+}
+
+export function setMicReady(micReady: boolean): void {
+  patch({ micReady })
+}
+
+export function toggleVoiceReplies(value?: boolean): void {
+  rudikStore.setState((state) => ({
+    ...state,
+    voiceReplies: value ?? !state.voiceReplies,
+  }))
+}
+
+/** Начали слушать зал: старый диалог со сцены убираем. */
+export function startListening(): void {
+  patch({ screen: 'listening', question: '', answer: '', sources: [], errorText: '' })
+}
+
+export function startThinking(question = ''): void {
+  patch({ screen: 'thinking', question, answer: '', sources: [], errorText: '' })
+}
+
+export function showAnswer(question: string, answer: string, sources: Array<string>): void {
+  patch({ screen: 'answer', question, answer, sources, errorText: '' })
+}
+
+export function showError(errorText: string, question = ''): void {
+  patch({ screen: 'error', errorText, question, answer: '', sources: [] })
+}
+
+export function showNoMic(errorText: string): void {
+  patch({ screen: 'nomic', errorText, micReady: false })
+}
+
+/** Возврат в дежурный режим: слушаем дальше или ждём нажатия. */
+export function resetScreen(): void {
+  rudikStore.setState((state) => ({
+    ...state,
+    screen: state.micReady ? 'listening' : 'idle',
+    question: '',
+    answer: '',
+    sources: [],
+    errorText: '',
+  }))
+}
