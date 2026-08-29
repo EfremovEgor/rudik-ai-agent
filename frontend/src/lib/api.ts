@@ -54,9 +54,14 @@ export interface WakeInfo {
 
 export interface Health {
   status: string
-  model: string
-  model_key_configured: boolean
   wake_word: string
+  llm: {
+    base_url: string
+    model: string
+    reachable: boolean
+    models: Array<string>
+    error: string | null
+  }
   knowledge_base: {
     chunks?: number
     by_kind?: Record<string, number>

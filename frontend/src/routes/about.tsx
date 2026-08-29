@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/about')({
   component: About,
@@ -16,44 +16,52 @@ const STEPS: Array<[string, string]> = [
   ],
   [
     'Агент',
-    'LangGraph-агент на Claude выбирает инструмент: найти сотрудника, посмотреть новости, перечислить кафедры или дозагрузить страницу сайта. Ответ всегда со ссылкой на источник.',
+    'LangGraph-агент на self-hosted Qwen выбирает инструмент: найти сотрудника, посмотреть новости, перечислить кафедры или дозагрузить страницу сайта. Ответ всегда со ссылкой на источник.',
   ],
   [
     'Голос',
-    'Речь распознаётся локально через faster-whisper, ответ озвучивается синтезом речи. Обращение «Рудик» ищется в расшифровке с поправкой на ошибки распознавания.',
+    'Речь распознаётся локально через faster-whisper со словарём фамилий академии, ответ озвучивается синтезом речи. Обращение «Рудик» ищется с поправкой на ошибки распознавания.',
   ],
 ]
 
 function About() {
   return (
-    <main className="page-wrap px-4 pb-10 pt-10">
-      <h1 className="display-title m-0 mb-4 text-3xl font-bold tracking-tight text-[var(--sea-ink)] sm:text-4xl">
+    <main className="h-dvh overflow-y-auto bg-[var(--rd-bg)] px-[6vw] py-[6vh]">
+      <Link to="/" className="rd-kicker text-[var(--rd-blue)] no-underline">
+        ← К ассистенту
+      </Link>
+
+      <h1 className="mt-[3vh] mb-[2vh] text-[clamp(1.8rem,3.2vw,58px)] font-extrabold text-[var(--rd-ink)]">
         Как устроен Рудик
       </h1>
-      <p className="mb-8 max-w-2xl text-base text-[var(--sea-ink-soft)]">
-        Рудик — виртуальный помощник Инженерной академии РУДН. Он отвечает
-        голосом и текстом, опираясь только на данные официального сайта академии.
+      <p className="rd-lead m-0 max-w-[70ch] text-[var(--rd-ink-soft)]">
+        Виртуальный помощник Инженерной академии РУДН. Отвечает голосом и
+        текстом, опираясь только на данные официального сайта академии.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mt-[5vh] grid gap-[1.6vw] sm:grid-cols-2">
         {STEPS.map(([title, text], index) => (
           <article
             key={title}
-            className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"
+            className="rounded-[24px] bg-white p-[2vw] shadow-[0_10px_30px_rgba(11,43,64,.08)]"
           >
-            <p className="island-kicker m-0 mb-2">Шаг {index + 1}</p>
-            <h2 className="m-0 mb-2 text-lg font-semibold text-[var(--sea-ink)]">{title}</h2>
-            <p className="m-0 text-sm text-[var(--sea-ink-soft)]">{text}</p>
+            <p className="rd-kicker m-0 text-[var(--rd-muted)]">Шаг {index + 1}</p>
+            <h2 className="mt-[1vh] mb-[1.2vh] text-[clamp(1.05rem,1.6vw,30px)] font-bold text-[var(--rd-ink)]">
+              {title}
+            </h2>
+            <p className="m-0 text-[clamp(0.85rem,1.15vw,22px)] text-[var(--rd-ink-soft)]">{text}</p>
           </article>
         ))}
       </div>
 
-      <section className="mt-8 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
-        <h2 className="m-0 mb-2 text-lg font-semibold text-[var(--sea-ink)]">Стек</h2>
-        <p className="m-0 text-sm text-[var(--sea-ink-soft)]">
-          Бэкенд: Python, uv, FastAPI, LangChain, LangGraph, Claude API,
-          faster-whisper, edge-tts. Фронтенд: React 19, TanStack Start, Router,
-          Query и Store, shadcn/ui, Tailwind CSS.
+      <section className="mt-[3vh] rounded-[24px] bg-white p-[2vw] shadow-[0_10px_30px_rgba(11,43,64,.08)]">
+        <h2 className="m-0 mb-[1.2vh] text-[clamp(1.05rem,1.6vw,30px)] font-bold text-[var(--rd-ink)]">
+          Стек
+        </h2>
+        <p className="m-0 text-[clamp(0.85rem,1.15vw,22px)] text-[var(--rd-ink-soft)]">
+          Бэкенд: Python, uv, FastAPI, LangChain, LangGraph, self-hosted Qwen на
+          vLLM, faster-whisper, edge-tts. Фронтенд: React 19, TanStack Start,
+          Router, Query и Store, shadcn/ui, Tailwind CSS.
         </p>
       </section>
     </main>
