@@ -40,7 +40,7 @@ const config = defineConfig({
     },
   },
   plugins: [
-    devtools(),
+    // devtools(),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
