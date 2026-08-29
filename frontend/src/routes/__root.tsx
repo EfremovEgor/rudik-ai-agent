@@ -1,4 +1,8 @@
-import { HeadContent, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Scripts,
+  createRootRouteWithContext,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
@@ -17,7 +21,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     meta: [
       { charSet: 'utf-8' },
       // Киоск занимает весь экран, масштабирование не нужно.
-      { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+      {
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1, viewport-fit=cover',
+      },
       { name: 'theme-color', content: '#0079c1' },
       { title: 'Рудик — голосовой помощник Инженерной академии РУДН' },
     ],
@@ -34,13 +41,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-sans antialiased selection:bg-[rgba(0,121,193,0.18)]">
         {children}
-        <TanStackDevtools
+        {/* <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[
             { name: 'Tanstack Router', render: <TanStackRouterDevtoolsPanel /> },
             TanStackQueryDevtools,
           ]}
-        />
+        /> */}
         <Scripts />
       </body>
     </html>
