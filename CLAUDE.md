@@ -27,15 +27,16 @@ npm run build
 | `backend/src/backend/agent/` | `tools` (инструменты), `graph` (LangGraph), `prompts` |
 | `backend/src/backend/voice/` | `stt` (faster-whisper), `tts` (edge-tts), `wakeword` (нечёткий поиск «Рудик») |
 | `backend/src/backend/api/` | роутеры FastAPI |
-| `frontend/src/lib/` | `api.ts` (клиент), `rudik-store.ts` (TanStack Store) |
+| `frontend/src/lib/` | `api.ts` (клиент), `rudik-store.ts` (состояния экрана) |
 | `frontend/src/hooks/useVoiceSession.ts` | микрофон, VAD, отправка фрагментов речи |
-| `frontend/src/components/rudik/` | аватар, голосовые контролы, чат, статус |
+| `frontend/src/components/rudik/` | киоск: сцена с позами, шапка и подвал, панель состояния |
 
 ## Правила, о которых легко забыть
 
-- **Модель Claude 5 не принимает `temperature`** — в `ChatAnthropic` его не
-  передаём. Глубина рассуждений задаётся `reasoning_effort` (в `.env` —
-  `RUDIK_EFFORT`, для голоса держим `low`).
+- **Модель self-hosted**: Qwen на vLLM через `ChatOpenAI` с `base_url`. Ключа
+  нет, но библиотека требует непустую строку — отсюда `RUDIK_LLM_API_KEY=EMPTY`.
+- **Qwen иногда отдаёт `<think>…</think>` прямо в ответе** — `clean_answer`
+  в `agent/graph.py` это вырезает.
 - **User-Agent должен быть ASCII** — httpx кодирует заголовки в latin-1.
 - **Ссылки со страницы собираются до `html.clean()`** — чистка выкидывает
   шапку с навигацией.
@@ -44,6 +45,11 @@ npm run build
 - **Тексты и комментарии в коде — на русском**, как и весь интерфейс.
 - **Голосовые зависимости опциональны**: код должен деградировать до текста
   и браузерного синтеза, а не падать.
+- **Экран — киоск по макету**, а не чат: одно состояние на весь холст.
+  Состояния перечислены в `Screen` (`lib/rudik-store.ts`), проверять их удобно
+  через `/?screen=<состояние>`.
+- **Микрофон требует https или localhost** и жеста пользователя. Сертификат
+  для доступа по сети Vite подхватывает из `frontend/certs/`.
 
 ## Данные
 
