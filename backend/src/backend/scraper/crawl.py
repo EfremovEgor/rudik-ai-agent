@@ -91,7 +91,14 @@ def crawl(
         tree = H.parse(page.html)
         outgoing = H.links(tree, url) if depth < max_depth else []
         processed += 1
-        log.info("[%s/%s] d%s %s%s", processed, limit, depth, url, "" if not page.from_cache else " (cache)")
+        log.info(
+            "[%s/%s] d%s %s%s",
+            processed,
+            limit,
+            depth,
+            url,
+            "" if not page.from_cache else " (cache)",
+        )
 
         yield CrawledPage(url=url, path=urlsplit(url).path, tree=tree, depth=depth)
 

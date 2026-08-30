@@ -8,7 +8,16 @@ from urllib.parse import urljoin
 from selectolax.parser import HTMLParser, Node
 
 # Теги, которые не несут контента вообще.
-DROP_TAGS = ("script", "style", "noscript", "svg", "iframe", "form", "template", "picture")
+DROP_TAGS = (
+    "script",
+    "style",
+    "noscript",
+    "svg",
+    "iframe",
+    "form",
+    "template",
+    "picture",
+)
 
 # Шаблонная обвязка сайта: футер, боковое меню, хлебные крошки.
 # <header> обрабатывается отдельно: у карточек сотрудников свой .uk-comment-header.
@@ -26,10 +35,34 @@ DROP_SELECTORS = (
 )
 
 BLOCK_TAGS = {
-    "p", "div", "section", "article", "li", "tr", "br", "hr",
-    "h1", "h2", "h3", "h4", "h5", "h6", "td", "th", "blockquote", "dd", "dt",
+    "p",
+    "div",
+    "section",
+    "article",
+    "li",
+    "tr",
+    "br",
+    "hr",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "td",
+    "th",
+    "blockquote",
+    "dd",
+    "dt",
 }
-HEADING_TAGS = {"h1": "#", "h2": "##", "h3": "###", "h4": "####", "h5": "#####", "h6": "######"}
+HEADING_TAGS = {
+    "h1": "#",
+    "h2": "##",
+    "h3": "###",
+    "h4": "####",
+    "h5": "#####",
+    "h6": "######",
+}
 
 _WS = re.compile(r"[ \t\r\n\xa0 ​ ]+")
 _BLANKS = re.compile(r"\n{3,}")
@@ -106,10 +139,10 @@ def _walk(node: Node, out: list[str], base_url: str) -> None:
         label = node_text(node)
         href = node.attributes.get("href") or ""
         if href.startswith("mailto:"):
-            address = href[len("mailto:"):]
+            address = href[len("mailto:") :]
             out.append(label if address in label else f"{label} ({address})".strip())
         elif href.startswith("tel:"):
-            out.append(label or href[len("tel:"):])
+            out.append(label or href[len("tel:") :])
         else:
             out.append(label)
         return

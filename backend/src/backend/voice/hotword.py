@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 from backend.config import Settings, get_settings
-from backend.voice.wakeword import detect
+from backend.voice.wakeword import detect_anywhere
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +67,9 @@ def download_model(settings: Settings | None = None) -> Path:
 
     # В архиве каталог называется так же, как модель, но подстрахуемся.
     if not target.exists():
-        candidates = [p for p in settings.models_dir.iterdir() if p.is_dir() and "vosk" in p.name]
+        candidates = [
+            p for p in settings.models_dir.iterdir() if p.is_dir() and "vosk" in p.name
+        ]
         if candidates:
             shutil.move(str(candidates[0]), str(target))
     log.info("Модель обращения распакована в %s", target)
@@ -146,8 +148,12 @@ class HotwordStream:
 
 
 def heard_wake_word(text: str) -> bool:
-    """Обращение ищем тем же нечётким сопоставлением, что и в полном тексте."""
-    return detect(text, window=6).detected
+    """Обращение ищем тем же нечётким сопоставлением, что и в полном тексте.
+
+    Без окна в начале: сюда приходит накопленный частичный результат Vosk,
+    и «Рудик» может стоять хоть двадцатым словом.
+    """
+    return detect_anywhere(text).detected
 
 
 def status(settings: Settings | None = None) -> dict[str, object]:

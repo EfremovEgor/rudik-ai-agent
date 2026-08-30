@@ -21,10 +21,14 @@ dependencies = [
 # Плотные (векторные) эмбеддинги для гибридного поиска. ONNX, без torch.
 rag = ["fastembed>=0.7.0"]
 # Распознавание речи (GigaAM v3 в ONNX + Vosk для wake word) и синтез.
+# Silero синтезирует локально, Piper и edge-tts оставлены запасными вариантами.
 voice = [
     "onnx-asr[cpu,hub]>=0.12.0",
     "vosk>=0.3.45",
     "av>=13.0.0",
+    "torch>=2.0.0",
+    "num2words>=0.5.14",
+    "piper-tts>=1.7.0",
     "edge-tts>=7.0.0",
 ]
 
@@ -36,3 +40,14 @@ rudik-serve = "backend.__main__:main"
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]
 build-backend = "uv_build"
+
+# Silero считает на процессоре, поэтому берём CPU-сборку torch: обычная тянет
+# несколько гигабайт библиотек CUDA, которые всё равно не используются.
+# Для синтеза на видеокарте (RUDIK_SILERO_CUDA=true) индекс меняют на cu124.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

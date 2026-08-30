@@ -27,7 +27,10 @@ class Embedder(Protocol):
 class FastEmbedEmbedder:
     """Обёртка над fastembed. E5-модели требуют префиксов query:/passage:."""
 
-    def __init__(self, model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> None:
+    def __init__(
+        self,
+        model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    ) -> None:
         from fastembed import TextEmbedding
 
         self.name = model_name

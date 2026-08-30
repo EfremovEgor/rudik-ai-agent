@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from backend.agent.graph import answer, extract_sources, stream_answer
+from backend.agent.graph import AgentUnavailable, answer, extract_sources, stream_answer
 from backend.api.schemas import ChatRequest, ChatResponse
 
 log = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def _sse(event: dict) -> str:
 @router.post("")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     """Поток событий: token — кусочек ответа, tool — вызов инструмента, done — конец."""
+
     async def generate() -> AsyncIterator[str]:
         collected: list[str] = []
         try:
@@ -30,6 +31,8 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
                 if event["type"] == "token":
                     collected.append(event["text"])
                 yield _sse(event)
+        except AgentUnavailable as exc:
+            yield _sse({"type": "error", "message": str(exc)})
         except Exception as exc:
             log.exception("Ошибка генерации ответа")
             yield _sse({"type": "error", "message": str(exc)})
@@ -49,6 +52,9 @@ async def chat_sync(request: ChatRequest) -> ChatResponse:
     """Ответ целиком — удобно для интеграций и тестов."""
     try:
         result = await answer(request.message, request.session_id)
+    except AgentUnavailable as exc:
+        # 503, а не 500: сервер модели вернётся, запрос имеет смысл повторить.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         log.exception("Ошибка генерации ответа")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -37,7 +37,9 @@ def build_index(settings: Settings | None = None) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="rudik-index", description="Пересобирает индекс базы знаний")
+    parser = argparse.ArgumentParser(
+        prog="rudik-index", description="Пересобирает индекс базы знаний"
+    )
     parser.add_argument("-q", "--quiet", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(

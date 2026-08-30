@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 # Короткие карточки не режем: они и так атомарные ответы.
 WHOLE_KINDS = {"person", "department", "program"}
@@ -37,7 +38,7 @@ class Chunk:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Chunk":
+    def from_dict(cls, data: dict[str, Any]) -> Chunk:
         return cls(
             id=data["id"],
             doc_id=data["doc_id"],
@@ -103,7 +104,11 @@ def chunk_documents(
         if not text:
             continue
         kind = document.get("kind", "page")
-        parts = [text] if kind in WHOLE_KINDS or len(text) <= size else split_text(text, size, overlap)
+        parts = (
+            [text]
+            if kind in WHOLE_KINDS or len(text) <= size
+            else split_text(text, size, overlap)
+        )
 
         for position, part in enumerate(parts):
             chunks.append(

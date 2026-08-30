@@ -1,6 +1,6 @@
 """Проверка голосового канала: льём в него запись и смотрим события.
 
-    uv run python scripts/check_stream.py путь-к-аудио.mp3
+uv run python scripts/check_stream.py путь-к-аудио.mp3
 """
 
 import asyncio
@@ -11,7 +11,6 @@ from pathlib import Path
 
 import numpy as np
 import websockets
-
 from backend.voice import asr
 
 URL = "ws://127.0.0.1:8000/api/voice/stream?session_id=check"
@@ -43,7 +42,9 @@ async def main(path: Path) -> None:
                     print(f"{mark} ОШИБКА  : {event['message'][:160]}")
                     return
                 else:
-                    print(f"{mark} {kind:8}: {json.dumps(event, ensure_ascii=False)[:140]}")
+                    print(
+                        f"{mark} {kind:8}: {json.dumps(event, ensure_ascii=False)[:140]}"
+                    )
 
         task = asyncio.create_task(reader())
         for index in range(0, len(pcm), FRAME_SAMPLES):
@@ -54,4 +55,12 @@ async def main(path: Path) -> None:
         await asyncio.wait_for(task, timeout=180)
 
 
-asyncio.run(main(Path(sys.argv[1] if len(sys.argv) > 1 else "scripts/.bench_audio/0-DmitryNeural.mp3")))
+asyncio.run(
+    main(
+        Path(
+            sys.argv[1]
+            if len(sys.argv) > 1
+            else "scripts/.bench_audio/0-DmitryNeural.mp3"
+        )
+    )
+)

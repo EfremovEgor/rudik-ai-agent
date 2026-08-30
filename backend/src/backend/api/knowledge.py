@@ -43,12 +43,16 @@ async def search(
 
 
 @router.get("/kb/people")
-async def people(q: str = Query(min_length=2), limit: int = Query(default=5, ge=1, le=20)) -> dict:
+async def people(
+    q: str = Query(min_length=2), limit: int = Query(default=5, ge=1, le=20)
+) -> dict:
     return {"query": q, "people": get_kb().find_people(q, limit=limit)}
 
 
 @router.get("/kb/news")
-async def news(limit: int = Query(default=5, ge=1, le=20), tag: str | None = None) -> dict:
+async def news(
+    limit: int = Query(default=5, ge=1, le=20), tag: str | None = None
+) -> dict:
     return {"news": get_kb().latest_news(limit=limit, tag=tag)}
 
 

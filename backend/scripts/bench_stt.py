@@ -14,7 +14,6 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 import edge_tts
-
 from backend.voice import asr
 
 PHRASES = [
@@ -42,7 +41,9 @@ async def synth(text: str, voice: str, path: Path) -> None:
 
 
 def normalize(text: str) -> str:
-    keep = "".join(c for c in text.lower().replace("ё", "е") if c.isalnum() or c.isspace())
+    keep = "".join(
+        c for c in text.lower().replace("ё", "е") if c.isalnum() or c.isspace()
+    )
     return " ".join(keep.split())
 
 

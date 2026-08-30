@@ -22,7 +22,11 @@ async def lifespan(app: FastAPI):
     from backend.rag.store import get_kb
 
     stats = get_kb(settings).stats()
-    log.info("База знаний: %s фрагментов, векторы: %s", stats.get("chunks"), stats.get("dense"))
+    log.info(
+        "База знаний: %s фрагментов, векторы: %s",
+        stats.get("chunks"),
+        stats.get("dense"),
+    )
 
     from backend.agent.graph import check_llm
 
@@ -30,7 +34,9 @@ async def lifespan(app: FastAPI):
     if llm["reachable"]:
         log.info("Модель %s на %s", settings.model, settings.llm_base_url)
     else:
-        log.warning("Сервер модели %s недоступен: %s", settings.llm_base_url, llm["error"])
+        log.warning(
+            "Сервер модели %s недоступен: %s", settings.llm_base_url, llm["error"]
+        )
 
     # Модели голоса греем в фоне: иначе первый вопрос ждёт их загрузку.
     warmup = asyncio.create_task(_warm_voice_models())

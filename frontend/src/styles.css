@@ -92,10 +92,20 @@ body {
   line-height: 1.35;
   font-weight: 500;
 }
+/* Кегль макетный, но длинный ответ ужимается множителем, чтобы влезть
+   в холст киоска целиком: подбор живёт в StatePanel. */
 .rd-answer {
-  font-size: clamp(1.3rem, 2.85vw, 54px);
+  font-size: calc(clamp(1.3rem, 2.85vw, 54px) * var(--rd-answer-fit, 1));
   line-height: 1.32;
   font-weight: 600;
+}
+
+/* Полосу прокрутки прячем: тянуть её у экрана в холле всё равно некому. */
+.rd-scroll {
+  scrollbar-width: none;
+}
+.rd-scroll::-webkit-scrollbar {
+  display: none;
 }
 .rd-question {
   font-size: clamp(1.05rem, 1.9vw, 36px);

@@ -16,9 +16,29 @@ from backend.config import Settings
 log = logging.getLogger(__name__)
 
 SKIP_SUFFIXES = (
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar",
-    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico", ".mp4", ".mp3",
-    ".css", ".js", ".woff", ".woff2", ".ttf",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
+    ".rar",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".ico",
+    ".mp4",
+    ".mp3",
+    ".css",
+    ".js",
+    ".woff",
+    ".woff2",
+    ".ttf",
 )
 
 
@@ -96,7 +116,7 @@ class Fetcher:
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "Fetcher":
+    def __enter__(self) -> Fetcher:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -112,7 +132,9 @@ class Fetcher:
     def get(self, url: str) -> Page | None:
         cache_path = self.cache_dir / url_to_filename(url)
         if self.use_cache and cache_path.exists():
-            return Page(url=url, html=cache_path.read_text(encoding="utf-8"), from_cache=True)
+            return Page(
+                url=url, html=cache_path.read_text(encoding="utf-8"), from_cache=True
+            )
 
         self._throttle()
         try:

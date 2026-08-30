@@ -5,10 +5,11 @@ from __future__ import annotations
 import difflib
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 from rank_bm25 import BM25Okapi
@@ -23,12 +24,7 @@ RRF_K = 60
 
 # Слова, которые не могут быть фамилией, но часто приезжают вместе с вопросом.
 QUESTION_WORDS = frozenset(
-    """
-    скажи скажите подскажи подскажите найди найти где какой какая какие какого
-    кабинет кабинете аудитория номер телефон почта email адрес сидит сидят
-    находится находятся работает работают человек сотрудник сотрудника
-    пожалуйста рудик привет здравствуйте нужен нужна нужно зовут можно
-    """.split()
+    ["скажи", "скажите", "подскажи", "подскажите", "найди", "найти", "где", "какой", "какая", "какие", "какого", "кабинет", "кабинете", "аудитория", "номер", "телефон", "почта", "email", "адрес", "сидит", "сидят", "находится", "находятся", "работает", "работают", "человек", "сотрудник", "сотрудника", "пожалуйста", "рудик", "привет", "здравствуйте", "нужен", "нужна", "нужно", "зовут", "можно"]
 )
 
 
@@ -73,13 +69,17 @@ class KnowledgeBase:
         self.dense = dense
         self.embedder = embedder
         self.meta = meta or {}
-        self._bm25 = BM25Okapi([search_tokens(c.embedding_text()) for c in chunks]) if chunks else None
+        self._bm25 = (
+            BM25Okapi([search_tokens(c.embedding_text()) for c in chunks])
+            if chunks
+            else None
+        )
         self._people = [c for c in chunks if c.kind == "person"]
 
     # ------------------------------------------------------------- построение
 
     @classmethod
-    def build(cls, chunks: list[Chunk], embedder: Embedder | None) -> "KnowledgeBase":
+    def build(cls, chunks: list[Chunk], embedder: Embedder | None) -> KnowledgeBase:
         dense = None
         meta: dict[str, Any] = {
             "built_at": datetime.now().isoformat(timespec="seconds"),
@@ -107,7 +107,7 @@ class KnowledgeBase:
         )
 
     @classmethod
-    def load(cls, directory: Path, embedder: Embedder | None) -> "KnowledgeBase | None":
+    def load(cls, directory: Path, embedder: Embedder | None) -> KnowledgeBase | None:
         chunks_path = directory / "chunks.jsonl"
         if not chunks_path.exists():
             return None
@@ -128,7 +128,9 @@ class KnowledgeBase:
             if candidate.shape[0] == len(chunks) and candidate.shape[1] == embedder.dim:
                 dense = candidate
             else:
-                log.warning("Векторный индекс не совпадает с моделью — пересоберите индекс")
+                log.warning(
+                    "Векторный индекс не совпадает с моделью — пересоберите индекс"
+                )
         return cls(chunks, dense=dense, embedder=embedder, meta=meta)
 
     # ----------------------------------------------------------------- поиск
@@ -207,7 +209,11 @@ class KnowledgeBase:
         words = [w for w in raw if len(w) > 3 and w not in QUESTION_WORDS]
         # Распознавание речи иногда рвёт длинную фамилию надвое
         # («Дмитри Ченкова»), поэтому пробуем и склеенные соседние слова.
-        words += [raw[i] + raw[i + 1] for i in range(len(raw) - 1) if len(raw[i] + raw[i + 1]) > 8]
+        words += [
+            raw[i] + raw[i + 1]
+            for i in range(len(raw) - 1)
+            if len(raw[i] + raw[i + 1]) > 8
+        ]
         if not words:
             return []
 
@@ -227,7 +233,8 @@ class KnowledgeBase:
                     else:
                         score = max(
                             difflib.SequenceMatcher(None, word, part).ratio(),
-                            difflib.SequenceMatcher(None, word_stem, part_stem).ratio() * 0.98,
+                            difflib.SequenceMatcher(None, word_stem, part_stem).ratio()
+                            * 0.98,
                         )
                     # Спрашивают по фамилии; совпадение только по имени или
                     # отчеству («Светлана Владимировна») почти ничего не значит.
@@ -240,12 +247,16 @@ class KnowledgeBase:
                 if all(word in position or word in name for word in words):
                     best = max(best, 0.82)
             if best >= 0.8:
-                scored.append((best, {**meta, "match": round(best, 3), "card": chunk.text}))
+                scored.append(
+                    (best, {**meta, "match": round(best, 3), "card": chunk.text})
+                )
 
         scored.sort(key=lambda item: -item[0])
         return [item[1] for item in scored[:limit]]
 
-    def latest_news(self, limit: int = 5, tag: str | None = None) -> list[dict[str, Any]]:
+    def latest_news(
+        self, limit: int = 5, tag: str | None = None
+    ) -> list[dict[str, Any]]:
         items = [c for c in self.chunks if c.kind == "news" and c.id.endswith("#0")]
         if tag:
             needle = fold(tag)

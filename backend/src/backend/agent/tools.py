@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal
+from typing import Literal
 from urllib.parse import urlsplit
 
 from langchain_core.tools import tool
@@ -116,7 +116,9 @@ def list_departments() -> str:
     for chunk in chunks:
         meta = chunk.meta or {}
         head = f", заведующий: {meta['head']}" if meta.get("head") else ""
-        lines.append(f"{chunk.title}{head}. Источник: {chunk.url or meta.get('url', '')}")
+        lines.append(
+            f"{chunk.title}{head}. Источник: {chunk.url or meta.get('url', '')}"
+        )
     return "\n".join(lines)
 
 
@@ -139,7 +141,9 @@ def list_programs(level: str = "") -> str:
         if needle and needle[:6] not in chunk_level:
             continue
         code = f"{meta.get('code')} " if meta.get("code") else ""
-        lines.append(f"{code}{chunk.title} ({chunk_level or 'уровень не указан'}) — {chunk.url}")
+        lines.append(
+            f"{code}{chunk.title} ({chunk_level or 'уровень не указан'}) — {chunk.url}"
+        )
     return "\n".join(lines[:60]) or f"Для уровня «{level}» направлений не найдено."
 
 

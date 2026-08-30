@@ -30,9 +30,26 @@ class Settings(BaseSettings):
     model: str = "qwen38-flash-next"
     # vLLM ключ не проверяет, но клиент OpenAI требует непустую строку.
     llm_api_key: str = "EMPTY"
-    max_tokens: int = 1200
+    # Ответ киоска короткий: запас нужен только на случай, если модель
+    # разговорится, — обрывать её на полуслове хуже, чем дать договорить.
+    max_tokens: int = 400
     temperature: float = 0.3
     llm_timeout: float = 120.0
+    # Рассуждения Qwen перед ответом. Выключены намеренно: модель тратила на них
+    # полторы-пять секунд, а киоску нужен ответ сразу. Качество и вызовы
+    # инструментов при этом не пострадали.
+    llm_thinking: bool = False
+    # Сколько раз повторить запрос, если сервер модели ответил 5xx или оборвал связь.
+    llm_retries: int = 2
+    # Ходить ли к модели через системный прокси (HTTP_PROXY и компания).
+    # По умолчанию нет: сервер стоит во внутренней сети, и прокси, настроенный
+    # для выхода в интернет, отвечает на такие адреса 502.
+    llm_trust_env: bool = False
+    # Потолок на весь ответ агента, включая инструменты. Киоск в холле не может
+    # держать человека у экрана дольше — лучше честно извиниться.
+    agent_timeout: float = 45.0
+    # Предохранитель против зацикливания «модель -> инструменты -> модель».
+    agent_max_steps: int = 8
 
     # --- Сервер ---
     host: str = "127.0.0.1"
@@ -44,7 +61,9 @@ class Settings(BaseSettings):
     crawl_delay: float = 0.4
     crawl_max_pages: int = 400
     # Заголовок должен быть ASCII — httpx кодирует его в latin-1.
-    user_agent: str = "RudikBot/1.0 (RUDN Engineering Academy assistant; +https://academy.rudn.ru/)"
+    user_agent: str = (
+        "RudikBot/1.0 (RUDN Engineering Academy assistant; +https://academy.rudn.ru/)"
+    )
 
     # --- RAG ---
     embeddings: str = "fastembed"
@@ -64,9 +83,31 @@ class Settings(BaseSettings):
     stream_preroll_ms: int = 1200
     # Предохранитель: реплика не может длиться дольше.
     stream_max_utterance_s: float = 15.0
-    # Пауза, после которой реплика считается законченной.
-    stream_silence_ms: int = 900
-    tts_backend: str = "edge"
+    # Сколько держится тишина, прежде чем поверить Vosk, что реплика кончилась.
+    # Меньше — ответ быстрее, но человека обрывают на раздумье посреди вопроса.
+    stream_endpoint_hold_ms: int = 600
+    # Страховочная пауза, после которой реплика закрывается принудительно.
+    # Конец фразы определяет Vosk — он слышит, что фраза не закончена, а голая
+    # громкость этого не знает и обрывает человека на раздумье. Поэтому порог
+    # заведомо больше обычной паузы в речи.
+    stream_silence_ms: int = 1200
+    # silero | piper | edge | none. Silero и Piper считают у себя: синтез фразы
+    # занимает доли секунды, тогда как edge ходит в облако и иногда отвечает
+    # через двадцать. Silero живее по интонации и сам расставляет ударения.
+    tts_backend: str = "silero"
+    # Голоса Silero v4: aidar и eugene мужские, baya, kseniya, xenia женские.
+    silero_voice: str = "eugene"
+    silero_model_url: str = "https://models.silero.ai/models/tts/ru/v5_5_ru.pt"
+    # 48000 звучит чище, 24000 и 8000 тоже поддерживаются.
+    silero_sample_rate: int = 48000
+    # Синтез на видеокарте. Требует torch со сборкой под CUDA; на процессоре
+    # Silero и так работает в разы быстрее реального времени.
+    silero_cuda: bool = False
+    # Голос Piper из каталога rhasspy/piper-voices, скачивается при первом пуске.
+    piper_voice: str = "ru_RU-ruslan-medium"
+    # Синтез Piper на видеокарте. Требует onnxruntime-gpu вместо обычной сборки.
+    piper_cuda: bool = False
+    # Голос edge-tts — на случай, если tts_backend вернут на edge.
     tts_voice: str = "ru-RU-DmitryNeural"
     tts_rate: str = "+8%"
     wake_word: str = "рудик"

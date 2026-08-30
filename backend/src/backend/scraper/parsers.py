@@ -12,7 +12,7 @@ from backend.scraper.models import Department, NewsItem, Person, Program
 from backend.textutil import deconfuse
 
 ROOM_RE = re.compile(
-    r"каб(?:\.|инет)?\s*№?\s*([\d/\-АБВГабвг]+(?:\s*[,и]\s*[\d/\-АБВГабвг]+)*)", re.I
+    r"каб(?:\.|инет)?\s*№?\s*([\d/\-АБВГабвг]+(?:\s*[,и]\s*[\d/\-АБВГабвг]+)*)", re.IGNORECASE
 )
 PHONE_RE = re.compile(r"\+?\d[\d\s\-()]{7,}\d\)?")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
@@ -35,7 +35,9 @@ def extract_rooms(text: str) -> list[str]:
 # --------------------------------------------------------------------------- люди
 
 
-def parse_employee_cards(tree: HTMLParser, source_url: str, unit: str = "") -> list[Person]:
+def parse_employee_cards(
+    tree: HTMLParser, source_url: str, unit: str = ""
+) -> list[Person]:
     """Карточки сотрудников (article.employee-card) — дирекция, кафедры, отделы."""
     people: list[Person] = []
     for card in tree.css("article.employee-card, .employee-card"):
@@ -98,7 +100,9 @@ def _employee_card_to_person(card: Node, source_url: str, unit: str) -> Person |
 
 def parse_profile(tree: HTMLParser, source_url: str) -> Person | None:
     """Личная страница сотрудника /profile/N."""
-    container = tree.css_first(".container-employee") or tree.css_first(".profile_content")
+    container = tree.css_first(".container-employee") or tree.css_first(
+        ".profile_content"
+    )
     if container is None:
         return None
     name = deconfuse(
@@ -139,7 +143,11 @@ def parse_departments(tree: HTMLParser, source_url: str) -> list[Department]:
         if not name:
             continue
         link = text_block.css_first("a[href]")
-        url = urljoin(source_url, link.attributes.get("href", "")) if link is not None else ""
+        url = (
+            urljoin(source_url, link.attributes.get("href", ""))
+            if link is not None
+            else ""
+        )
 
         description = H.node_text(text_block)
         description = description.replace(name, "", 1).replace("Подробнее", "").strip()
@@ -167,7 +175,9 @@ def parse_departments(tree: HTMLParser, source_url: str) -> list[Department]:
     return departments
 
 
-def parse_department_page(tree: HTMLParser, source_url: str) -> tuple[Department, list[Person]]:
+def parse_department_page(
+    tree: HTMLParser, source_url: str
+) -> tuple[Department, list[Person]]:
     """Страница отдельной кафедры: описание, направления и состав."""
     name = H.page_title(tree)
     main = H.main_content(tree)
@@ -210,7 +220,11 @@ def parse_news_list(tree: HTMLParser, source_url: str) -> list[NewsItem]:
         date_match = DATE_RE.search(badge)
         if title:
             items.append(
-                NewsItem(title=title, url=url, date=date_match.group(1) if date_match else badge)
+                NewsItem(
+                    title=title,
+                    url=url,
+                    date=date_match.group(1) if date_match else badge,
+                )
             )
     return items
 
@@ -240,7 +254,9 @@ def parse_news_item(tree: HTMLParser, source_url: str) -> NewsItem | None:
 LEVEL_NAMES = ("бакалавриат", "специалитет", "магистратура", "аспирантура")
 
 
-def parse_level_page(tree: HTMLParser, source_url: str, level: str = "") -> list[Program]:
+def parse_level_page(
+    tree: HTMLParser, source_url: str, level: str = ""
+) -> list[Program]:
     """Список направлений на /applicants/study_directions/{bachelor,masters,postgraduates}.
 
     Разметка — аккордеон: заголовок это укрупнённое направление с кодом,
@@ -254,7 +270,7 @@ def parse_level_page(tree: HTMLParser, source_url: str, level: str = "") -> list
         if not heading:
             continue
         code_match = CODE_RE.search(heading)
-        direction = CODE_RE.sub("", heading).strip(" -—:«»\"")
+        direction = CODE_RE.sub("", heading).strip(' -—:«»"')
 
         profiles = item.css(".uk-accordion-content a[href]")
         if not profiles:
@@ -271,7 +287,7 @@ def parse_level_page(tree: HTMLParser, source_url: str, level: str = "") -> list
 
         for profile in profiles:
             name = H.node_text(profile)
-            name = re.sub(r"^\s*профил[ья]\s*:?\s*", "", name, flags=re.I).strip()
+            name = re.sub(r"^\s*профил[ья]\s*:?\s*", "", name, flags=re.IGNORECASE).strip()
             if not name:
                 continue
             programs.append(
@@ -305,6 +321,8 @@ def parse_program_page(tree: HTMLParser, source_url: str) -> Program | None:
         level=level,
         code=code_match.group(1) if code_match else "",
         language="en" if "prog_lang=en" in source_url else "ru",
-        department=("Кафедра " + department_match.group(1).strip()) if department_match else "",
+        department=("Кафедра " + department_match.group(1).strip())
+        if department_match
+        else "",
         description=text[:2500],
     )

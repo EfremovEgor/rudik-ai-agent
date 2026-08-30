@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -82,7 +83,9 @@ def handle_page(page: CrawledPage, result: ScrapeResult) -> None:
             result.add_person(person)
 
     elif path == "/academy/administration":
-        for person in P.parse_employee_cards(tree, url, unit="Дирекция Инженерной академии"):
+        for person in P.parse_employee_cards(
+            tree, url, unit="Дирекция Инженерной академии"
+        ):
             result.add_person(person)
 
     elif path == "/academy/departments":
@@ -147,7 +150,12 @@ def handle_page(page: CrawledPage, result: ScrapeResult) -> None:
 
     text = H.to_markdown(H.main_content(tree), url)
     if len(text) > 120:
-        result.pages[url] = {"url": url, "title": title, "section": section_of(path), "text": text}
+        result.pages[url] = {
+            "url": url,
+            "title": title,
+            "section": section_of(path),
+            "text": text,
+        }
 
 
 def run_scrape(
@@ -169,6 +177,50 @@ def run_scrape(
 
 
 # --------------------------------------------------------------- сохранение
+
+
+# Адрес на сайте разбросан по карточкам сотрудников: «Москва, ул. Орджоникидзе,
+# д. 3, каб. 403». Отдельной записи про сам адрес академии нет.
+_ADDRESS = re.compile(r"Москва,\s*ул\.\s*([^,]{3,40}?),\s*д\.?\s*(\d+)", re.IGNORECASE)
+
+
+def academy_card(result: ScrapeResult) -> dict[str, Any] | None:
+    """Короткая карточка про саму академию: где она находится.
+
+    На вопрос «где находится академия» поиск возвращал чьи-то профили, и модель
+    придумывала адрес. Берём самый частый адрес из собранных страниц — так
+    запись переживёт переезд, в отличие от вписанной руками константы.
+    """
+    counter: Counter[tuple[str, str]] = Counter()
+    for person in result.people.values():
+        counter.update(_ADDRESS.findall(person.address or ""))
+    for page in result.pages.values():
+        counter.update(_ADDRESS.findall(page.get("text", "")))
+    if not counter:
+        return None
+
+    (street, house), _ = counter.most_common(1)[0]
+    address = f"Москва, улица {street.strip()}, дом {house}"
+    contacts = next(
+        (url for url in result.pages if url.rstrip("/").endswith("contacts")),
+        f"{get_settings().site_base}/academy/contacts",
+    )
+    return {
+        "id": "page:academy-address",
+        "kind": "page",
+        "title": "Адрес Инженерной академии РУДН",
+        "url": contacts,
+        "section": "Об академии",
+        # Формулировки вопросов оставляем в тексте: по ним словарный поиск
+        # и находит эту запись, а не карточку случайного сотрудника.
+        "text": (
+            "Адрес Инженерной академии РУДН.\n\n"
+            f"Инженерная академия РУДН находится по адресу: {address}.\n"
+            "Где находится Инженерная академия, где расположена академия, "
+            "как найти академию, адрес академии, куда приезжать."
+        ),
+        "meta": {"address": address},
+    }
 
 
 def build_documents(result: ScrapeResult) -> list[dict[str, Any]]:
@@ -227,6 +279,10 @@ def build_documents(result: ScrapeResult) -> list[dict[str, Any]]:
                 "meta": program.dict(),
             }
         )
+
+    card = academy_card(result)
+    if card:
+        documents.append(card)
 
     for url, page in result.pages.items():
         documents.append(

@@ -15,10 +15,18 @@ def main(argv: list[str] | None = None) -> int:
         prog="rudik-scrape",
         description="Собирает данные с academy.rudn.ru в data/documents.jsonl и data/structured.json",
     )
-    parser.add_argument("--cache", action="store_true", help="использовать сохранённый HTML из data/raw")
-    parser.add_argument("--max-pages", type=int, default=None, help="ограничить число страниц")
-    parser.add_argument("--url", action="append", dest="seeds", help="начать обход с конкретного URL")
-    parser.add_argument("--index", action="store_true", help="сразу пересобрать поисковый индекс")
+    parser.add_argument(
+        "--cache", action="store_true", help="использовать сохранённый HTML из data/raw"
+    )
+    parser.add_argument(
+        "--max-pages", type=int, default=None, help="ограничить число страниц"
+    )
+    parser.add_argument(
+        "--url", action="append", dest="seeds", help="начать обход с конкретного URL"
+    )
+    parser.add_argument(
+        "--index", action="store_true", help="сразу пересобрать поисковый индекс"
+    )
     parser.add_argument("-q", "--quiet", action="store_true")
     args = parser.parse_args(argv)
 

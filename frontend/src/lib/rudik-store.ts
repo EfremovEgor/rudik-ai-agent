@@ -109,6 +109,17 @@ export function setQuestion(question: string): void {
   patch({ question })
 }
 
+/** Кусочек ответа из потока: экран переключается на первом же токене. */
+export function appendAnswer(chunk: string): void {
+  rudikStore.setState((state) => ({
+    ...state,
+    screen: 'answer',
+    answer: state.screen === 'answer' ? state.answer + chunk : chunk,
+    partial: '',
+    errorText: '',
+  }))
+}
+
 export function showAnswer(question: string, answer: string, sources: Array<string>): void {
   patch({ screen: 'answer', question, answer, sources, errorText: '', partial: '' })
 }

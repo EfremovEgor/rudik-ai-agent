@@ -83,7 +83,9 @@ def decode_audio(data: bytes) -> np.ndarray:
     try:
         import av
     except ImportError as exc:
-        raise RuntimeError("Для разбора аудиофайлов нужен av: uv sync --extra voice") from exc
+        raise RuntimeError(
+            "Для разбора аудиофайлов нужен av: uv sync --extra voice"
+        ) from exc
 
     with av.open(io.BytesIO(data)) as container:
         stream = container.streams.audio[0]

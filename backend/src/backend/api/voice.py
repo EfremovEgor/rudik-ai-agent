@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from backend.agent.graph import answer, strip_sources
+from backend.agent.graph import AgentUnavailable, answer, strip_sources
 from backend.api.schemas import TranscriptResponse, TtsRequest, VoiceAnswer, WakeInfo
 from backend.config import get_settings
 from backend.voice import asr, tts
@@ -42,7 +42,9 @@ def _transcribe(data: bytes) -> str:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         log.exception("Ошибка распознавания речи")
-        raise HTTPException(status_code=500, detail=f"Ошибка распознавания: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка распознавания: {exc}"
+        ) from exc
 
 
 @router.post("/stt", response_model=TranscriptResponse)
@@ -54,21 +56,24 @@ async def speech_to_text(audio: UploadFile = File(...)) -> TranscriptResponse:
         text=text,
         duration=0.0,
         wake=WakeInfo(
-            detected=wake.detected, command=wake.command, matched=wake.matched, score=wake.score
+            detected=wake.detected,
+            command=wake.command,
+            matched=wake.matched,
+            score=wake.score,
         ),
     )
 
 
 @router.post("/tts")
 async def text_to_speech(request: TtsRequest) -> Response:
-    """Озвучивает текст и отдаёт mp3."""
+    """Озвучивает текст: WAV от Piper или mp3 от edge-tts."""
     try:
         audio = await tts.synthesize(request.text, voice=request.voice)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not audio:
         raise HTTPException(status_code=400, detail="Нечего озвучивать")
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=audio, media_type=tts.media_type())
 
 
 @router.post("/ask", response_model=VoiceAnswer)
@@ -84,19 +89,24 @@ async def voice_ask(
     text = _transcribe(data)
     wake = detect(text)
     info = WakeInfo(
-        detected=wake.detected, command=wake.command, matched=wake.matched, score=wake.score
+        detected=wake.detected,
+        command=wake.command,
+        matched=wake.matched,
+        score=wake.score,
     )
 
     # Тишина или фраза не для нас — просто молчим.
     if require_wake_word and not wake.detected:
         return VoiceAnswer(question=text, wake=info, session_id=session_id)
-
     question = (wake.command if wake.detected else text).strip()
     if not question:
         question = "Расскажи, что ты умеешь."
 
     try:
         result = await answer(question, session_id)
+    except AgentUnavailable as exc:
+        # 503, а не 500: сервер модели вернётся, запрос имеет смысл повторить.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         log.exception("Ошибка генерации ответа")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -106,7 +116,9 @@ async def voice_ask(
     if speak and tts.available() and spoken:
         try:
             audio_bytes = await tts.synthesize(spoken)
-            encoded = base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else None
+            encoded = (
+                base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else None
+            )
         except Exception:
             log.exception("Не удалось озвучить ответ — вернём только текст")
 
@@ -115,6 +127,7 @@ async def voice_ask(
         answer=result["text"],
         spoken=spoken,
         sources=result["sources"],
+        audio_format=tts.media_type(),
         wake=info,
         audio=encoded,
         session_id=session_id,
@@ -123,4 +136,4 @@ async def voice_ask(
 
 @router.get("/voices")
 async def list_voices() -> dict[str, object]:
-    return {"voices": await tts.voices(), "current": get_settings().tts_voice}
+    return {"voices": await tts.voices(), "current": tts.status()["voice"]}

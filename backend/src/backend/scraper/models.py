@@ -28,7 +28,7 @@ class Person:
     photo_url: str = ""
     source_url: str = ""
 
-    def merge(self, other: "Person") -> None:
+    def merge(self, other: Person) -> None:
         """Дополняет запись данными из другой карточки того же человека."""
         self.position = self.position or other.position
         self.unit = self.unit or other.unit
@@ -73,7 +73,9 @@ class Department:
     def to_text(self) -> str:
         lines = [f"Кафедра: {self.name}"]
         if self.head:
-            lines.append(f"Заведующий: {self.head} ({self.head_position})".replace(" ()", ""))
+            lines.append(
+                f"Заведующий: {self.head} ({self.head_position})".replace(" ()", "")
+            )
         if self.description:
             lines.append(self.description)
         if self.programs:
@@ -95,7 +97,11 @@ class NewsItem:
     body: str = ""
 
     def to_text(self) -> str:
-        head = f"Новость от {self.date}: {self.title}" if self.date else f"Новость: {self.title}"
+        head = (
+            f"Новость от {self.date}: {self.title}"
+            if self.date
+            else f"Новость: {self.title}"
+        )
         parts = [head]
         if self.tags:
             parts.append("Теги: " + ", ".join(self.tags))
