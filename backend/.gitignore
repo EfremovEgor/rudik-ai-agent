@@ -4,6 +4,10 @@ __pycache__/
 .env
 data/raw/
 data/index/
+# Модели скачиваются кодом при первом запуске: Vosk в hotword.download_model,
+# Piper и Silero в tts.download_model. В репозитории им не место — полгигабайта,
+# а один файл Silero v5 крупнее лимита GitHub.
+data/models/
 .pytest_cache/
 .bench_audio/
 bench_*.json
