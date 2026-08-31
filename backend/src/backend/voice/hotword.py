@@ -103,21 +103,42 @@ def get_model(settings: Settings | None = None):
 
 
 class HotwordStream:
-    """Инкрементальный распознаватель одного соединения.
+    """Инкрементальные распознаватели одного соединения.
 
-    Отдаёт две вещи: услышал ли обращение и закончилась ли реплика.
-    Точность здесь не важна — за текст отвечает GigaAM.
+    Их два, и это принципиально. Пока ждём обращения, поток идёт в
+    распознаватель с ограниченной грамматикой: ему разрешено услышать только
+    имя ассистента, поэтому в шуме он не уходит в похожие слова. Когда реплику
+    уже пишут, нужен обычный полный распознаватель — он даёт черновой текст на
+    экран и отмечает конец фразы. Точность там не важна: за текст отвечает
+    GigaAM.
     """
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self._recognizer = None
+        self._wake = None
         model = get_model(self.settings)
-        if model is not None:
-            import vosk
+        if model is None:
+            return
 
-            self._recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE)
-            self._recognizer.SetWords(False)
+        import vosk
+
+        self._recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+        self._recognizer.SetWords(False)
+
+        if self.settings.hotword_grammar:
+            # Слова вне словаря модели Vosk молча игнорирует, оставляя [unk].
+            grammar = json.dumps(
+                [self.settings.wake_word, "[unk]"], ensure_ascii=False
+            )
+            try:
+                self._wake = vosk.KaldiRecognizer(model, SAMPLE_RATE, grammar)
+                # Уверенность по словам: она отделяет настоящее обращение
+                # от случайного, на которое декодер вынужден сводить всё
+                # подряд, раз других слов ему не разрешено.
+                self._wake.SetWords(True)
+            except Exception:
+                log.exception("Грамматика обращения не собралась — слушаем как обычно")
 
     @property
     def ready(self) -> bool:
@@ -126,6 +147,48 @@ class HotwordStream:
     def reset(self) -> None:
         if self._recognizer is not None:
             self._recognizer.Reset()
+        if self._wake is not None:
+            self._wake.Reset()
+
+    def accept_wake(self, pcm16: bytes, *, fast: bool = True) -> bool:
+        """Слушает поток в ожидании обращения.
+
+        Отдельный распознаватель с коротким словарём: в шумном холле обычный
+        слышит вместо «Рудик» то «пороге», то «рубят», и киоск молчит. Обратная
+        сторона — словаря почти нет, и чужую речь декодер тоже сводит к имени.
+
+        Отсюда два режима. `fast` — для ожидания: срабатываем по частичному
+        результату, ловим всё, а лишнее потом отсеет GigaAM по точному тексту.
+        Строгий режим — для перехвата ответа: там ложное срабатывание рвёт
+        ответ на полуслове, поэтому ждём закрытый сегмент с уверенностью.
+        """
+        if self._wake is None:
+            text, final = self.accept(pcm16)
+            if final:
+                self.reset()
+            return bool(text) and heard_wake_word(text)
+
+        wake = self.settings.wake_word
+
+        # Закрытый сегмент несёт уверенность — по ней отсеиваем случайные
+        # совпадения, на которые декодер вынужден сводить всё подряд.
+        if self._wake.AcceptWaveform(pcm16):
+            result = json.loads(self._wake.Result())
+            self._wake.Reset()
+            return any(
+                word.get("word") == wake
+                and float(word.get("conf", 0.0)) >= self.settings.hotword_confidence
+                for word in result.get("result", [])
+            )
+
+        if not fast:
+            return False
+
+        # Частичный результат уверенности не содержит, зато появляется сразу.
+        # Ждать закрытия сегмента нельзя: человек говорит без пауз, и сегмент
+        # закроется только в конце фразы — обращение к тому времени устареет.
+        partial = (json.loads(self._wake.PartialResult()).get("partial") or "").split()
+        return wake in partial
 
     def accept(self, pcm16: bytes) -> tuple[str, bool]:
         """Скармливает кадр и возвращает текущий текст и признак конца фразы.

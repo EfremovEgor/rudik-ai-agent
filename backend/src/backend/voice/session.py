@@ -109,6 +109,12 @@ class StreamSession:
         self.noise = SILENCE_FLOOR
         self.silence_ms = 0.0
         self.voiced_ms = 0.0
+        # Когда начался текущий ответ — от него отсчитывается защита от перехвата.
+        self.answer_started = 0.0
+        # Номер разговора и время последнего вопроса: после долгой паузы у
+        # экрана уже другой человек, и переписку надо начинать заново.
+        self.dialog = 0
+        self.asked_at = 0.0
         # Текст сегментов, которые Vosk уже закрыл внутри одной реплики.
         self.said = ""
         self.ended = False
@@ -141,29 +147,31 @@ class StreamSession:
             return
 
         loudness = frame_rms(pcm16)
-        text, final = await asyncio.to_thread(self.hotword.accept, pcm16)
 
         if self.mode == "answering":
             # Рудик отвечает, но зал слышно: обращение поверх ответа обрывает
             # озвучку. Эхо собственных колонок гасит браузер, а своё имя Рудик
             # в ответах не произносит — иначе перебивал бы сам себя.
-            if text and heard_wake_word(text):
+            # Строгий режим: ложное срабатывание тут рвёт ответ на полуслове.
+            # Плюс защитная пауза — сразу после вопроса в канале ещё звучит
+            # его хвост, и ответ обрывался на первых буквах.
+            fresh = (time.monotonic() - self.answer_started) * 1000
+            if fresh >= self.settings.interrupt_guard_ms and await asyncio.to_thread(
+                lambda: self.hotword.accept_wake(pcm16, fast=False)
+            ):
                 await self._interrupt()
-            elif final:
-                self.hotword.reset()
             return
 
         if self.mode == "waiting":
             # Пока ждём обращения, запоминаем, насколько шумно в холле.
             self.noise = 0.97 * self.noise + 0.03 * loudness
-            if text and heard_wake_word(text):
+            if await asyncio.to_thread(self.hotword.accept_wake, pcm16):
                 await self._begin_capture()
-            elif final:
-                # Реплика не про нас — забываем и слушаем дальше.
-                self.hotword.reset()
             return
 
-        # Идёт запись реплики.
+        # Идёт запись реплики: тут нужен уже полный текст, а не одно имя.
+        text, final = await asyncio.to_thread(self.hotword.accept, pcm16)
+
         self.capture.append(pcm16)
         if text and text != self.last_partial:
             self.last_partial = text
@@ -225,6 +233,7 @@ class StreamSession:
         кадры, иначе перебить Рудика голосом будет нечем.
         """
         self.mode = "answering"
+        self.answer_started = time.monotonic()
         audio = b"".join(self.capture)
         self.capture = []
         self.preroll.clear()
@@ -266,6 +275,20 @@ class StreamSession:
         await self.emit({"type": "interrupt"})
         await self._begin_capture()
 
+    def _thread(self) -> str:
+        """Идентификатор ветки диалога для памяти агента.
+
+        Пока вопросы идут подряд, ветка одна — уточнения вроде «а где он?»
+        работают. После долгой тишины номер меняется, и новый посетитель
+        получает чистый контекст.
+        """
+        now = time.monotonic()
+        if self.asked_at and now - self.asked_at > self.settings.dialog_ttl_s:
+            self.dialog += 1
+            log.info("Долгая пауза — начинаю разговор заново")
+        self.asked_at = now
+        return f"{self.session_id}:{self.dialog}"
+
     async def _answer(self, audio: bytes, rough_text: str) -> None:
         samples = asr.pcm16_to_float(audio)
         if samples.size < SAMPLE_RATE // 2:
@@ -279,8 +302,21 @@ class StreamSession:
             await self.emit({"type": "error", "message": str(exc)})
             return
 
+        # Проверка обращения по точному тексту. Ловим мы его быстрым путём,
+        # который в шумном холле срабатывает и на чужую речь; здесь у нас уже
+        # есть аккуратная расшифровка, и лишнее видно сразу.
         wake = detect_anywhere(text or rough_text)
-        question = (wake.command if wake.detected else text).strip()
+        if not wake.detected:
+            # Если это повторяется на настоящих вопросах, значит обращение не
+            # попало в запись: смотреть надо на длину предыстории, а не на порог.
+            log.info(
+                "Обращения в реплике нет, пропускаем: %r (запись %.1f с)",
+                text[:80],
+                samples.size / SAMPLE_RATE,
+            )
+            return
+
+        question = wake.command.strip()
         await self.emit({"type": "question", "text": question or text})
 
         if not question:
@@ -289,6 +325,7 @@ class StreamSession:
 
         # Текст отдаём по мере генерации: первые слова появляются на экране
         # примерно через секунду, а не через паузу на весь ответ и озвучку.
+        thread = self._thread()
         think = ThinkFilter()
         parts: list[str] = []
         # Озвучка идёт параллельно генерации, фраза за фразой: ждать синтеза
@@ -309,7 +346,7 @@ class StreamSession:
             await self.emit({"type": "token", "text": piece})
 
         try:
-            async for event in stream_answer(question, self.session_id):
+            async for event in stream_answer(question, thread):
                 if event["type"] != "token":
                     continue
                 piece = think.feed(event["text"])

@@ -47,10 +47,12 @@ const SESSION_KEY = 'rudik.session'
 function initialSession(): string {
   if (typeof window === 'undefined') return 'server'
   try {
-    const stored = window.localStorage.getItem(SESSION_KEY)
+    // sessionStorage, а не localStorage: перезагрузка экрана должна начинать
+    // разговор заново. Иначе киоск месяцами тащит одну и ту же переписку.
+    const stored = window.sessionStorage.getItem(SESSION_KEY)
     if (stored) return stored
     const fresh = `kiosk-${Math.random().toString(36).slice(2, 10)}`
-    window.localStorage.setItem(SESSION_KEY, fresh)
+    window.sessionStorage.setItem(SESSION_KEY, fresh)
     return fresh
   } catch {
     return `kiosk-${Math.random().toString(36).slice(2, 10)}`

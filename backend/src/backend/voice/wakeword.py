@@ -8,9 +8,20 @@ from dataclasses import dataclass
 
 from backend.textutil import fold
 
-# Whisper и Web Speech API пишут имя по-разному — принимаем все близкие варианты.
+# Распознавание пишет имя по-разному — принимаем близкие варианты.
 # Короткие огрызки вроде «руди» сюда не кладём: на них ловятся посторонние
 # слова («орудий»). Начало «руди» и так покрыто отдельным правилом ниже.
+#
+# Чего здесь намеренно нет: «рудник», «рудный», «рудин». Это обычные слова,
+# и в речи про РУДН они всплывают постоянно — с ними фраза «ректор РУДН»
+# срабатывала как обращение, и киоск отвечал сам себе. Список нужен на
+# случай, когда распознавание слегка промахнулось по имени, а не чтобы
+# ловить всё похожее: точный текст даёт GigaAM, и он редко ошибается.
+# Настоящие варианты имени совпадают с точностью 1.0, а ближайшие чужие слова
+# («рудник», «прудик») дают 0.91 — порог проходит ровно между ними. Ниже 0.9
+# в базу вопросов начинают просачиваться посторонние фразы.
+WAKE_THRESHOLD = 0.93
+
 ALIASES = (
     "рудик",
     "рудике",
@@ -19,12 +30,7 @@ ALIASES = (
     "рудиком",
     "рудек",
     "родик",
-    "рудник",
     "рудич",
-    "рудин",
-    "будик",
-    "худик",
-    "рудный",
     "rudik",
     "roodik",
     "rudick",
@@ -81,7 +87,7 @@ def _tail(text: str, span: re.Match[str], alias: str, score: float) -> WakeResul
     return WakeResult(True, command, matched=alias, score=round(score, 3))
 
 
-def detect(text: str, *, threshold: float = 0.78, window: int = 5) -> WakeResult:
+def detect(text: str, *, threshold: float = WAKE_THRESHOLD, window: int = 5) -> WakeResult:
     """Ищет имя ассистента в начале реплики и возвращает остаток как команду.
 
     Имя ищется только в первых `window` словах: «Рудик, где кабинет?» — обращение,
@@ -98,7 +104,7 @@ def detect(text: str, *, threshold: float = 0.78, window: int = 5) -> WakeResult
     return WakeResult(False, text.strip())
 
 
-def detect_anywhere(text: str, *, threshold: float = 0.78) -> WakeResult:
+def detect_anywhere(text: str, *, threshold: float = WAKE_THRESHOLD) -> WakeResult:
     """То же, но без окна в начале и по последнему совпадению.
 
     Нужно для постоянного потока: Vosk копит частичный результат, пока в зале

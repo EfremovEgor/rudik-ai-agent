@@ -39,6 +39,14 @@ function holdFor(text: string): number {
 const ERROR_HOLD_MS = 5000
 const PING_MS = 20000
 
+// Пока браузер проигрывает ответ, микрофон на сервер не льём. Эхоподавление
+// браузера гасит только то, что он сам выводит через свой звуковой тракт, а
+// внешние колонки киоска возвращаются в микрофон как обычная речь: сервер
+// слышит «Привет» Рудика, считает это обращением и глушит его же озвучку.
+// Цена решения — перебить Рудика голосом можно не во время реплики, а сразу
+// после неё; ответы короткие, и это заметно меньшее зло.
+const ECHO_TAIL_MS = 400
+
 // Киоск работает сутками, и сервер может уехать на перезапуск. Первые попытки
 // частые — обычный обрыв связи чинится сразу; дальше пауза растёт, чтобы не
 // долбить лежащий сервер каждые две секунды.
@@ -99,6 +107,10 @@ export function useVoiceStream() {
   // цепочкой, иначе фразы наложатся друг на друга.
   const playChainRef = useRef<Promise<void>>(Promise.resolve())
   const playingRef = useRef(0)
+  // Сколько кусков озвучки сейчас на руках и до какого момента ещё звучит
+  // хвост в помещении: пока это так, микрофон наружу молчит.
+  const speakingRef = useRef(0)
+  const quietUntilRef = useRef(0)
   // Номер ответа: куски, поставленные в очередь до перехвата, играть не нужно.
   const speechRef = useRef(0)
 
@@ -110,6 +122,8 @@ export function useVoiceStream() {
   const stopSpeaking = useCallback(() => {
     speechRef.current += 1
     playingRef.current = 0
+    speakingRef.current = 0
+    quietUntilRef.current = Date.now() + ECHO_TAIL_MS
     playChainRef.current = Promise.resolve()
     const audio = audioRef.current
     if (audio) {
@@ -127,9 +141,12 @@ export function useVoiceStream() {
         const url = URL.createObjectURL(blob)
         const audio = new Audio(url)
         audioRef.current = audio
+        speakingRef.current += 1
         const finish = () => {
           URL.revokeObjectURL(url)
           if (audioRef.current === audio) audioRef.current = null
+          speakingRef.current = Math.max(0, speakingRef.current - 1)
+          quietUntilRef.current = Date.now() + ECHO_TAIL_MS
           resolve()
         }
         audio.onended = finish
@@ -314,10 +331,10 @@ export function useVoiceStream() {
         const { pcm, peak } = message.data as { pcm: Int16Array; peak: number }
         setLevel(Math.min(1, peak * 2.4))
         const socket = socketRef.current
-        // Микрофон льём и пока Рудик говорит: иначе его не перебить. От
-        // собственных колонок спасает эхоподавление браузера, а своё имя
-        // Рудик в ответах не произносит — иначе обрывал бы себя сам.
-        if (socket?.readyState === WebSocket.OPEN) {
+        // Пока звучит ответ, наружу не отдаём ничего: иначе сервер услышит
+        // Рудика из колонок, примет это за обращение и оборвёт его же озвучку.
+        const echoing = speakingRef.current > 0 || Date.now() < quietUntilRef.current
+        if (!echoing && socket?.readyState === WebSocket.OPEN) {
           socket.send(pcm.buffer)
         }
       }
