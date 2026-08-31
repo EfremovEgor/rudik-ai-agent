@@ -7,3 +7,6 @@ data/index/
 .pytest_cache/
 .bench_audio/
 bench_*.json
+*.pt
+
+data/models/*
