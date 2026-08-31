@@ -28,7 +28,7 @@ from backend.agent.graph import (
 )
 from backend.config import Settings, get_settings
 from backend.voice import asr, tts
-from backend.voice.hotword import HotwordStream, heard_wake_word
+from backend.voice.hotword import HotwordStream, confirm_wake, heard_wake_word
 from backend.voice.wakeword import detect_anywhere
 
 log = logging.getLogger(__name__)
@@ -305,18 +305,23 @@ class StreamSession:
         # Проверка обращения по точному тексту. Ловим мы его быстрым путём,
         # который в шумном холле срабатывает и на чужую речь; здесь у нас уже
         # есть аккуратная расшифровка, и лишнее видно сразу.
-        wake = detect_anywhere(text or rough_text)
-        if not wake.detected:
-            # Если это повторяется на настоящих вопросах, значит обращение не
-            # попало в запись: смотреть надо на длину предыстории, а не на порог.
+        # Обращение перепроверяем по звуку, а не по тексту GigaAM: имя
+        # собственное в начале фразы он охотно «исправляет» на осмысленное
+        # («Рудик, кто такой...» -> «Вроде бы...»), и настоящий вопрос
+        # выглядел бы как случайный шум.
+        confidence = await asyncio.to_thread(confirm_wake, audio, self.settings)
+        if confidence < self.settings.hotword_confidence:
             log.info(
-                "Обращения в реплике нет, пропускаем: %r (запись %.1f с)",
+                "Обращения в записи нет (уверенность %.2f), пропускаем: %r (%.1f с)",
+                confidence,
                 text[:80],
                 samples.size / SAMPLE_RATE,
             )
             return
 
-        question = wake.command.strip()
+        # Если имя в расшифровке всё же уцелело, отрезаем его от вопроса.
+        wake = detect_anywhere(text)
+        question = (wake.command if wake.detected else text).strip()
         await self.emit({"type": "question", "text": question or text})
 
         if not question:

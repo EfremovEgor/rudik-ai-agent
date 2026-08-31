@@ -210,6 +210,46 @@ class HotwordStream:
         return (result.get("text") or "").strip()
 
 
+def confirm_wake(pcm16: bytes, settings: Settings | None = None) -> float:
+    """Перепроверяет по всей записи, было ли в ней обращение.
+
+    Ловим обращение на лету по частичному результату — быстро, но грубо: раз
+    декодеру разрешено только имя, он сводит к нему и чужую речь. Здесь запись
+    уже целиком, спешить некуда, и можно спросить с уверенностью.
+
+    Почему не по тексту GigaAM: имя собственное в начале фразы он охотно
+    «исправляет» на осмысленное — «Рудик, кто такой...» превращается во
+    «Вроде бы...», и настоящий вопрос выглядел бы как случайный шум.
+
+    Возвращает уверенность от нуля до единицы.
+    """
+    settings = settings or get_settings()
+    model = get_model(settings)
+    if model is None or not settings.hotword_grammar:
+        return 1.0  # проверять нечем — доверяем срабатыванию
+
+    import vosk
+
+    grammar = json.dumps([settings.wake_word, "[unk]"], ensure_ascii=False)
+    recognizer = vosk.KaldiRecognizer(model, SAMPLE_RATE, grammar)
+    recognizer.SetWords(True)
+
+    best = 0.0
+
+    def scan(payload: str) -> None:
+        nonlocal best
+        for word in json.loads(payload).get("result", []):
+            if word.get("word") == settings.wake_word:
+                best = max(best, float(word.get("conf", 0.0)))
+
+    step = 4096
+    for start in range(0, len(pcm16), step):
+        if recognizer.AcceptWaveform(pcm16[start : start + step]):
+            scan(recognizer.Result())
+    scan(recognizer.FinalResult())
+    return best
+
+
 def heard_wake_word(text: str) -> bool:
     """Обращение ищем тем же нечётким сопоставлением, что и в полном тексте.
 
