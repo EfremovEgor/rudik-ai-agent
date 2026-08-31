@@ -23,6 +23,8 @@ export interface RudikState {
   screen: Screen
   /** Микрофон открыт и слушает. */
   micReady: boolean
+  /** Голосовой канал с сервером на связи. */
+  connected: boolean
   /** Громкость с микрофона (0..1) — по ней живёт эквалайзер. */
   level: number
   /** Живая расшифровка от быстрой модели, пока человек говорит. */
@@ -58,6 +60,7 @@ function initialSession(): string {
 export const rudikStore = new Store<RudikState>({
   screen: 'idle',
   micReady: false,
+  connected: false,
   level: 0,
   partial: '',
   question: '',
@@ -82,6 +85,10 @@ export function setLevel(level: number): void {
 
 export function setMicReady(micReady: boolean): void {
   patch({ micReady })
+}
+
+export function setConnected(connected: boolean): void {
+  patch({ connected })
 }
 
 export function toggleVoiceReplies(value?: boolean): void {

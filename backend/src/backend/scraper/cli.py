@@ -27,6 +27,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--index", action="store_true", help="сразу пересобрать поисковый индекс"
     )
+    parser.add_argument(
+        "--rudn",
+        action="store_true",
+        help=(
+            "добавить сотрудников головного РУДН: ректора и список ППС. "
+            "Список ППС закрыт в robots.txt головного сайта, поэтому только по флагу"
+        ),
+    )
     parser.add_argument("-q", "--quiet", action="store_true")
     args = parser.parse_args(argv)
 
@@ -38,7 +46,11 @@ def main(argv: list[str] | None = None) -> int:
 
     settings = get_settings()
     result = run_scrape(
-        settings, use_cache=args.cache, max_pages=args.max_pages, seeds=args.seeds
+        settings,
+        use_cache=args.cache,
+        max_pages=args.max_pages,
+        seeds=args.seeds,
+        with_rudn=args.rudn,
     )
     stats = save(result, settings)
 

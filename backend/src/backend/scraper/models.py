@@ -27,6 +27,14 @@ class Person:
     profile_url: str = ""
     photo_url: str = ""
     source_url: str = ""
+    # Учёная степень и звание — их спрашивают о преподавателях чаще всего.
+    degree: str = ""
+    academic_title: str = ""
+    # Преподаваемые дисциплины из сведений об образовательной организации.
+    subjects: list[str] = field(default_factory=list)
+    # Откуда человек: "academy" — Инженерная академия, "university" — весь РУДН.
+    # По этому признаку поиск отдаёт предпочтение своим сотрудникам.
+    scope: str = "academy"
 
     def merge(self, other: Person) -> None:
         """Дополняет запись данными из другой карточки того же человека."""
@@ -38,6 +46,13 @@ class Person:
         self.emails = _clean_list(self.emails + other.emails)
         self.profile_url = self.profile_url or other.profile_url
         self.photo_url = self.photo_url or other.photo_url
+        self.degree = self.degree or other.degree
+        self.academic_title = self.academic_title or other.academic_title
+        self.subjects = _clean_list(self.subjects + other.subjects)
+        # Сотрудник академии остаётся сотрудником академии, даже если его
+        # карточка нашлась ещё и в общеуниверситетском списке.
+        if self.scope != "academy":
+            self.scope = other.scope
 
     def to_text(self) -> str:
         lines = [f"{self.name}"]
@@ -45,6 +60,10 @@ class Person:
             lines.append(f"Должность: {self.position}")
         if self.unit:
             lines.append(f"Подразделение: {self.unit}")
+        if self.degree:
+            lines.append(f"Учёная степень: {self.degree}")
+        if self.academic_title:
+            lines.append(f"Учёное звание: {self.academic_title}")
         if self.rooms:
             lines.append(f"Кабинет: {', '.join(self.rooms)}")
         if self.address:
@@ -53,6 +72,8 @@ class Person:
             lines.append(f"Телефон: {', '.join(self.phones)}")
         if self.emails:
             lines.append(f"Email: {', '.join(self.emails)}")
+        if self.subjects:
+            lines.append(f"Преподаёт: {'; '.join(self.subjects)}")
         return "\n".join(lines)
 
     def dict(self) -> dict[str, Any]:

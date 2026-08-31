@@ -109,8 +109,9 @@ class Fetcher:
                 "User-Agent": settings.user_agent,
                 "Accept-Language": "ru-RU,ru;q=0.9",
             },
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(60.0),
             follow_redirects=True,
+            trust_env=settings.scraper_trust_env,
         )
 
     def close(self) -> None:

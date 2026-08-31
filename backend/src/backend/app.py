@@ -62,7 +62,7 @@ async def _warm_voice_models() -> None:
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="Рудик — ассистент Инженерной академии РУДН",
+        title="Рудик — ассистент РУДН",
         version="0.1.0",
         lifespan=lifespan,
     )

@@ -16,6 +16,7 @@ import {
   resetScreen,
   rudikStore,
   setLevel,
+  setConnected,
   setMicReady,
   setPartial,
   setQuestion,
@@ -36,8 +37,19 @@ function holdFor(text: string): number {
   return Math.min(ANSWER_HOLD_MAX_MS, Math.max(ANSWER_HOLD_MS, text.length * READING_MS_PER_CHAR))
 }
 const ERROR_HOLD_MS = 5000
-const RECONNECT_MS = 2000
 const PING_MS = 20000
+
+// Киоск работает сутками, и сервер может уехать на перезапуск. Первые попытки
+// частые — обычный обрыв связи чинится сразу; дальше пауза растёт, чтобы не
+// долбить лежащий сервер каждые две секунды.
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS = 15000
+// Как часто проверяем, что канал живой.
+const WATCHDOG_MS = 5000
+// Сокет бывает «полуоткрытым»: соединение формально есть, а данные не ходят,
+// и события close браузер так и не дождётся. Сервер отвечает на пинг каждые
+// PING_MS, так что более долгая тишина означает оборванный канал.
+const SILENCE_LIMIT_MS = PING_MS * 2 + 5000
 
 interface ServerEvent {
   type:
@@ -77,7 +89,12 @@ export function useVoiceStream() {
   const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const closingRef = useRef(false)
+  // Номер попытки переподключения — по нему растёт пауза между ними.
+  const attemptsRef = useRef(0)
+  // Когда сервер в последний раз что-нибудь прислал.
+  const lastMessageRef = useRef(0)
   // Ответ озвучивается по фразам, и куски приходят пачкой. Проигрываем их
   // цепочкой, иначе фразы наложатся друг на друга.
   const playChainRef = useRef<Promise<void>>(Promise.resolve())
@@ -213,20 +230,45 @@ export function useVoiceStream() {
     const socket = new WebSocket(streamUrl(rudikStore.state.sessionId))
     socket.binaryType = 'arraybuffer'
     socketRef.current = socket
+    lastMessageRef.current = Date.now()
+
+    socket.onopen = () => {
+      attemptsRef.current = 0
+      lastMessageRef.current = Date.now()
+      setConnected(true)
+      // Связь могла оборваться посреди ответа — тогда экран так и остался на
+      // «Ищу ответ…». Сервер об этой реплике уже забыл, возвращаемся к залу.
+      if (rudikStore.state.micReady) {
+        if (holdRef.current) clearTimeout(holdRef.current)
+        startListening()
+      }
+    }
 
     socket.onmessage = (message) => {
+      lastMessageRef.current = Date.now()
       try {
         void handleEvent(JSON.parse(message.data as string) as ServerEvent)
       } catch {
         // битый кадр — не наша забота
       }
     }
+
     socket.onclose = () => {
       socketRef.current = null
+      setConnected(false)
+      // Ответ оборвался вместе с каналом: продолжать его озвучку бессмысленно.
+      stopSpeaking()
       if (closingRef.current) return
-      // Киоск работает сутками: молча восстанавливаем связь.
-      reconnectRef.current = setTimeout(connect, RECONNECT_MS)
+
+      const delay = Math.min(
+        RECONNECT_MAX_MS,
+        RECONNECT_BASE_MS * 2 ** attemptsRef.current,
+      )
+      attemptsRef.current += 1
+      if (reconnectRef.current) clearTimeout(reconnectRef.current)
+      reconnectRef.current = setTimeout(connect, delay)
     }
+
     socket.onerror = () => socket.close()
 
     if (pingRef.current) clearInterval(pingRef.current)
@@ -235,7 +277,7 @@ export function useVoiceStream() {
         socket.send(JSON.stringify({ type: 'ping' }))
       }
     }, PING_MS)
-  }, [handleEvent])
+  }, [handleEvent, stopSpeaking])
 
   const startSession = useCallback(async () => {
     if (streamRef.current) return
@@ -287,7 +329,20 @@ export function useVoiceStream() {
       nodeRef.current = node
 
       closingRef.current = false
+      attemptsRef.current = 0
       connect()
+
+      // Полуоткрытый сокет браузер не закрывает сам — ловим его по тишине.
+      if (watchdogRef.current) clearInterval(watchdogRef.current)
+      watchdogRef.current = setInterval(() => {
+        const live = socketRef.current
+        if (!live || live.readyState !== WebSocket.OPEN) return
+        if (Date.now() - lastMessageRef.current > SILENCE_LIMIT_MS) {
+          // close() поднимет onclose, а тот уже назначит переподключение.
+          live.close()
+        }
+      }, WATCHDOG_MS)
+
       setMicReady(true)
       startListening()
     } catch (error) {
@@ -304,9 +359,11 @@ export function useVoiceStream() {
     if (holdRef.current) clearTimeout(holdRef.current)
     if (pingRef.current) clearInterval(pingRef.current)
     if (reconnectRef.current) clearTimeout(reconnectRef.current)
+    if (watchdogRef.current) clearInterval(watchdogRef.current)
     holdRef.current = null
     pingRef.current = null
     reconnectRef.current = null
+    watchdogRef.current = null
 
     socketRef.current?.close()
     socketRef.current = null
@@ -323,6 +380,7 @@ export function useVoiceStream() {
     }
     setLevel(0)
     setMicReady(false)
+    setConnected(false)
   }, [])
 
   useEffect(() => stopSession, [stopSession])

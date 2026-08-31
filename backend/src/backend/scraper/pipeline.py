@@ -164,6 +164,7 @@ def run_scrape(
     use_cache: bool = False,
     max_pages: int | None = None,
     seeds: list[str] | None = None,
+    with_rudn: bool = False,
 ) -> ScrapeResult:
     settings = settings or get_settings()
     result = ScrapeResult()
@@ -173,6 +174,18 @@ def run_scrape(
                 handle_page(page, result)
             except Exception:  # одна кривая страница не должна ронять весь обход
                 log.exception("Ошибка разбора %s", page.url)
+
+        # Сотрудников головного РУДН добавляем последними: карточки академии
+        # уже в результате, и общий список только дополнит их степенями
+        # и дисциплинами, не затирая кабинеты и телефоны.
+        if with_rudn:
+            from backend.scraper.rudn import scrape_rudn
+
+            try:
+                for person in scrape_rudn(settings, fetcher):
+                    result.add_person(person)
+            except Exception:
+                log.exception("Не удалось собрать сотрудников РУДН")
     return result
 
 

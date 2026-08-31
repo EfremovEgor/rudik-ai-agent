@@ -72,6 +72,10 @@ def find_person(name: str) -> str:
             lines.append(f"Должность: {person['position']}")
         if person.get("unit"):
             lines.append(f"Подразделение: {person['unit']}")
+        if person.get("degree"):
+            lines.append(f"Учёная степень: {person['degree']}")
+        if person.get("academic_title"):
+            lines.append(f"Учёное звание: {person['academic_title']}")
         if person.get("rooms"):
             lines.append(f"Кабинет: {', '.join(person['rooms'])}")
         if person.get("address"):

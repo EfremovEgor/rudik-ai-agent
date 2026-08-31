@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     user_agent: str = (
         "RudikBot/1.0 (RUDN Engineering Academy assistant; +https://academy.rudn.ru/)"
     )
+    # Ходить ли за страницами через системный прокси. По умолчанию нет — та же
+    # беда, что и с сервером модели: прокси из окружения рвёт соединение,
+    # и живой обход падает на первой же странице.
+    scraper_trust_env: bool = False
 
     # --- RAG ---
     embeddings: str = "fastembed"

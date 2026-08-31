@@ -55,20 +55,28 @@ export function KioskHeader() {
 export function KioskFooter() {
   const screen = useStore(rudikStore, (state) => state.screen)
   const micReady = useStore(rudikStore, (state) => state.micReady)
+  const connected = useStore(rudikStore, (state) => state.connected)
 
+  // Обрыв канала показываем честно: микрофон включён, но Рудик сейчас не слышит.
+  const lostLink = micReady && !connected
   const hint =
     screen === 'nomic'
       ? 'Микрофон недоступен'
-      : micReady
-        ? 'Микрофон включён — скажите «Рудик»'
-        : 'Микрофон выключен'
+      : lostLink
+        ? 'Нет связи с сервером — восстанавливаю соединение'
+        : micReady
+          ? 'Микрофон включён — скажите «Рудик»'
+          : 'Микрофон выключен'
 
   return (
     <>
       <div className="relative flex items-center justify-center gap-[0.8vw] px-[3.75vw] pb-[2.4vh]">
         <span
           className="rud-mic block size-[clamp(9px,0.7vw,13px)] rounded-full"
-          style={{ background: screen === 'nomic' ? 'var(--rd-red)' : 'var(--rd-blue)' }}
+          style={{
+            background:
+              screen === 'nomic' || lostLink ? 'var(--rd-red)' : 'var(--rd-blue)',
+          }}
         />
         <span className="text-[clamp(0.7rem,1vw,19px)] font-medium text-[var(--rd-muted)]">
           {hint}
