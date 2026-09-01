@@ -26,7 +26,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
       { name: 'theme-color', content: '#0079c1' },
-      { title: 'Рудик — голосовой помощник Инженерной академии РУДН' },
+      { title: 'Патрис — голосовой помощник Инженерной академии РУДН' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
   }),

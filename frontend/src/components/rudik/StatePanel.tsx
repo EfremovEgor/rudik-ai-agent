@@ -83,12 +83,12 @@ export function StatePanel({ onStart }: { onStart: () => void }) {
         <>
           <h1 className="rd-hero m-0 text-[var(--rd-ink)]">
             Привет!
-            <br />Я Рудик
+            <br />Я Патрис
           </h1>
           <p className="rd-lead mt-[2.6vh] mb-0 text-[var(--rd-ink-soft)] text-pretty">
             Голосовой помощник Инженерной академии.
             <br />
-            Просто скажите «Рудик» и задайте вопрос.
+            Просто скажите «Патрис» и задайте вопрос.
           </p>
           <div className="mt-[4vh] flex flex-col items-start gap-[2vh]">
             <Button
@@ -121,7 +121,7 @@ export function StatePanel({ onStart }: { onStart: () => void }) {
                 partial ? 'text-[var(--rd-ink)]' : 'text-[var(--rd-muted)]'
               }`}
             >
-              {partial || 'Скажите «Рудик» и задайте вопрос'}
+              {partial || 'Скажите «Патрис» и задайте вопрос'}
               <span className="rud-blink ml-[0.4vw] inline-block h-[clamp(20px,2.9vw,54px)] w-[5px] translate-y-[0.12em] bg-[var(--rd-blue)] align-middle" />
             </p>
           </div>
@@ -180,7 +180,7 @@ export function StatePanel({ onStart }: { onStart: () => void }) {
             )}
           </div>
           <p className="rd-note mt-[2.4vh] mb-0 flex-none text-[var(--rd-muted)]">
-            Скажите «Рудик» ещё раз, чтобы задать новый вопрос
+            Скажите «Патрис» ещё раз, чтобы задать новый вопрос
           </p>
         </>
       )}

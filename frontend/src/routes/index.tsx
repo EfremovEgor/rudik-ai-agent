@@ -9,7 +9,7 @@ import type { Screen } from '#/lib/rudik-store'
 
 /** Демо-режим из макета: ?screen=answer показывает состояние без микрофона. */
 const DEMO_SCREENS: Array<Screen> = ['idle', 'listening', 'thinking', 'answer', 'error', 'nomic']
-const DEMO_QUESTION = 'Рудик, скажи где кабинет Салтыковой?'
+const DEMO_QUESTION = 'Патрис, скажи где кабинет Салтыковой?'
 const DEMO_ANSWER =
   'Кабинет Салтыковой Ольги Александровны находится в здании Инженерной академии, 204 и 404.'
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/')({
   },
   head: () => ({
     meta: [
-      { title: 'Рудик — голосовой помощник Инженерной академии РУДН' },
+      { title: 'Патрис — голосовой помощник Инженерной академии РУДН' },
       {
         name: 'description',
         content:

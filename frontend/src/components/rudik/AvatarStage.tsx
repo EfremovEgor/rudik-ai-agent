@@ -5,12 +5,12 @@ import type { Screen } from '#/lib/rudik-store'
 
 /** Своя поза Рудика на каждое состояние экрана. */
 const POSE: Record<Screen, { src: string; alt: string; height: string }> = {
-  idle: { src: '/rudik/pose-1.png', alt: 'Рудик приветствует', height: '74vh' },
-  listening: { src: '/rudik/pose-6.png', alt: 'Рудик слушает', height: '65vh' },
-  thinking: { src: '/rudik/pose-7.png', alt: 'Рудик думает', height: '68vh' },
-  answer: { src: '/rudik/pose-4.png', alt: 'Рудик отвечает', height: '65vh' },
-  error: { src: '/rudik/pose-8.png', alt: 'Рудик не расслышал', height: '72vh' },
-  nomic: { src: '/rudik/pose-5.png', alt: 'Рудик недоступен', height: '70vh' },
+  idle: { src: '/rudik/pose-1.png', alt: 'Патрис приветствует', height: '74vh' },
+  listening: { src: '/rudik/pose-6.png', alt: 'Патрис слушает', height: '65vh' },
+  thinking: { src: '/rudik/pose-7.png', alt: 'Патрис думает', height: '68vh' },
+  answer: { src: '/rudik/pose-4.png', alt: 'Патрис отвечает', height: '65vh' },
+  error: { src: '/rudik/pose-8.png', alt: 'Патрис не расслышал', height: '72vh' },
+  nomic: { src: '/rudik/pose-5.png', alt: 'Патрис недоступен', height: '70vh' },
 }
 
 export function AvatarStage() {

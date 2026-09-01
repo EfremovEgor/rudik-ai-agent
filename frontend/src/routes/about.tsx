@@ -2,7 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/about')({
   component: About,
-  head: () => ({ meta: [{ title: 'О проекте — Рудик' }] }),
+  head: () => ({ meta: [{ title: 'О проекте — Патрис' }] }),
 })
 
 const STEPS: Array<[string, string]> = [
@@ -32,7 +32,7 @@ function About() {
       </Link>
 
       <h1 className="mt-[3vh] mb-[2vh] text-[clamp(1.8rem,3.2vw,58px)] font-extrabold text-[var(--rd-ink)]">
-        Как устроен Рудик
+        Как устроен Патрис
       </h1>
       <p className="rd-lead m-0 max-w-[70ch] text-[var(--rd-ink-soft)]">
         Виртуальный помощник Инженерной академии РУДН. Отвечает голосом и

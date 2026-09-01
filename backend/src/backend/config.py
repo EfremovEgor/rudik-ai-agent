@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     # Голос edge-tts — на случай, если tts_backend вернут на edge.
     tts_voice: str = "ru-RU-DmitryNeural"
     tts_rate: str = "+8%"
-    wake_word: str = "рудик"
+    wake_word: str = "патрис"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

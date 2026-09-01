@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Рудик — голосовой AI-ассистент Инженерной академии РУДН"
+description = "Патрис — голосовой AI-ассистент Инженерной академии РУДН"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
